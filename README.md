@@ -82,6 +82,16 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 
 ## Preparation of the environment
 
+We firstly clone the project:
+
+```bash
+git clone https://github.com/spolivin/mini-rag.git
+
+cd mini-rag
+```
+
+Afterwards, we set up the virtual environment:
+
 ```bash
 source setup_env.sh
 ```
