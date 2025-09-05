@@ -26,7 +26,7 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 
 - [x] **Document ingestion** (PDF, TXT, MD)
 - [x] **Text chunking** (with configurable chunk size and overlap)
-- [ ] **Embedding generation** with CPU-friendly models (`sentence-transformers`)
+- [x] **Embedding generation** with CPU-friendly models (`sentence-transformers`)
 - [ ] **Vector search** using *FAISS*
 - [ ] **Basic retrieval pipeline** (query → embeddings → top-k chunk search)
 - [ ] **Lightweight LLM integration** (local small models)
@@ -44,8 +44,8 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 
 ### Stage 2 - Embeddings & Storage
 
-- [ ] Use `sentence-transformers/all-MiniLM-L6-v2` for chunk embeddings
-- [ ] Store embeddings in FAISS index with metadata
+- [x] Use `sentence-transformers/all-MiniLM-L6-v2` for chunk embeddings
+- [ ] Store embeddings in FAISS index
 - [ ] Implement similarity search
 
 ### Stage 3 - Retrieval pipeline
@@ -104,8 +104,8 @@ At its starting stage only text retrieval and chunking mechanisms have been impl
 ```bash
 python run.py articles/article.pdf --chunk-size=300 --overlap=20
 ```
-> Make sure to add some PDF document to `articles` folder first.
+> Make sure to add some PDF document to `articles` folder first as well as set *HuggingFace* token via `hf auth login <HF-TOKEN>`.
 
-This will show how many documents have been extracted as well as how many chunks have been created depending on `--chunk-size` and `--overlap`. Additionally, the first 10 chunks are displayed.
+This will show how many documents have been extracted as well as how many chunks have been created depending on `--chunk-size` and `--overlap`. Lastly, the script makes use of `sentence-transformers/all-MiniLM-L6-v2` model to generate embeddings for each created chunk.
 
-The next step of the project is to generate emdeddings.
+The next step of the project is to store the generated embeddings in a FAISS vector store.
