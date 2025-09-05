@@ -2,6 +2,7 @@ import argparse
 
 from mini_rag.chunking import chunk_documents
 from mini_rag.ingestion import load_document
+from mini_rag.embeddings import generate_embeddings
 
 parser = argparse.ArgumentParser(description="Process some documents.")
 parser.add_argument("path", type=str, help="Path to the document")
@@ -10,9 +11,8 @@ parser.add_argument("--overlap", type=int, help="Overlap between chunks", defaul
 args = parser.parse_args()
 
 docs = load_document(path=args.path)
+print(f"[INFO] Loaded {len(docs)} documents.")
 chunks = chunk_documents(docs=docs, chunk_size=args.chunk_size, overlap=args.overlap)
-
-print(f"Loaded {len(docs)} documents.")
-print(f"Created {len(chunks)} chunks.\n")
-for i, chunk in enumerate(chunks[0:10]):  # Print chunks 1 to 10 as a sample
-    print(f"Chunk {i+1}: {chunk.page_content[:args.chunk_size]}\n")  # Print each chunk
+print(f"[INFO] Created {len(chunks)} chunks.")
+embeddings = generate_embeddings(chunks)
+print(f"[INFO] Generated embeddings with shape: {embeddings.shape}")
