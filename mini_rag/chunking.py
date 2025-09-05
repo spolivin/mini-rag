@@ -15,11 +15,14 @@ def chunk_documents(docs, chunk_size=500, overlap=50):
 
     Returns
     -------
-    list[Document]
-        A list of Document objects containing the chunked text.
+    list[str]
+        A list of strings containing the chunked text.
     """
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=overlap,
     )
-    return splitter.split_documents(docs)
+    chunks = splitter.split_documents(docs)
+    chunks = [chunk.page_content for chunk in chunks]
+
+    return chunks
