@@ -15,6 +15,12 @@ parser.add_argument(
 parser.add_argument("--chunk-size", type=int, help="Size of each chunk", default=300)
 parser.add_argument("--overlap", type=int, help="Overlap between chunks", default=50)
 parser.add_argument(
+    "--gen-model",
+    type=str,
+    help="Text generation model name",
+    default="google/flan-t5-small",
+)
+parser.add_argument(
     "--embedding-model",
     type=str,
     help="SentenceTransformer model name",
@@ -34,22 +40,31 @@ args = parser.parse_args()
 
 
 def main():
+    # Initialize the retrieval pipeline
     pipeline = RetrievalPipeline(
         source_doc_path=args.source_doc,
+        gen_model_name=args.gen_model,
         embedding_model_name=args.embedding_model,
         cross_encoder_model_name=args.cross_encoder_model,
     )
-    ranked_candidates = pipeline(
+    # Run the pipeline with the provided query
+    answer, candidates, scores = pipeline(
         query=args.query,
         top_k=args.top_k,
         chunk_size=args.chunk_size,
         overlap=args.overlap,
         verbose=args.verbose,
     )
-    for num, candidate in enumerate(ranked_candidates, 1):
+
+    # Print the retrieved candidates
+    for i, candidate in enumerate(candidates):
         print(100 * "-")
-        print(f"[RESULT #{num}]: {candidate}")
+        print(f"[RETRIEVAL RESULT #{i + 1}, Score: {scores[i]:.4f}]: '{candidate}'")
     print(100 * "-")
+
+    # Print the final answer from the LLM
+    print(f"\nQuestion: {args.query}\n")
+    print(f"Answer: {answer}\n")
 
 
 if __name__ == "__main__":
