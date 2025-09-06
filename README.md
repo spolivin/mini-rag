@@ -27,8 +27,8 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 - [x] **Document ingestion** (PDF, TXT, MD)
 - [x] **Text chunking** (with configurable chunk size and overlap)
 - [x] **Embedding generation** with CPU-friendly models (`sentence-transformers`)
-- [ ] **Vector search** using *FAISS*
-- [ ] **Basic retrieval pipeline** (query → embeddings → top-k chunk search)
+- [x] **Vector search** using *FAISS*
+- [x] **Basic retrieval pipeline** (query → embeddings → top-k chunk search)
 - [ ] **Lightweight LLM integration** (local small models)
 - [ ] **Q&A pipeline**
 - [ ] **CLI interface** for document querying
@@ -45,13 +45,13 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 ### Stage 2 - Embeddings & Storage
 
 - [x] Use `sentence-transformers/all-MiniLM-L6-v2` for chunk embeddings
-- [ ] Store embeddings in FAISS index
-- [ ] Implement similarity search
+- [x] Store embeddings in FAISS index
+- [x] Implement similarity search
 
 ### Stage 3 - Retrieval pipeline
 
-- [ ] Take a user query, embed it, and search for top-k chunks
-- [ ] Return most relevant context to user
+- [x] Take a user query, embed it, and search for top-k chunks
+- [x] Return most relevant context to user
 - [ ] Format results into a prompt template
 
 ### Stage 4 - Lightweight LLM Integration
@@ -61,7 +61,7 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 
 ### Stage 5 - CLI & Web Interface
 
-- [ ] Add a CLI to query documents
+- [x] Add a CLI to query documents
 - [ ] Add a simple Streamlit UI for interactive search
 
 ### Stage 6 - Deployment
@@ -99,13 +99,14 @@ source setup_env.sh
 
 ## Current progress
 
-At its starting stage only text retrieval and chunking mechanisms have been implemented which can be tested in this way:
+The script below will preprocess the PDF-document via extracting its text and chunking it depending on `--chunk-size` and `--overlap`. It will then generate embeddings, store them in FAISS index and then conduct top-k similarity search given the provided `--query`, at the end displaying re-ranked chunks considered to be the most relevant to the query.
 
 ```bash
-python run.py articles/article.pdf --chunk-size=300 --overlap=20
+python run.py --source-doc=articles/rnn_paper.pdf --query="What is an RNN?" --chunk-size=800 --overlap=100 --top-k=10 --verbose
 ```
 > Make sure to add some PDF document to `articles` folder first as well as set *HuggingFace* token via `hf auth login <HF-TOKEN>`.
 
-This will show how many documents have been extracted as well as how many chunks have been created depending on `--chunk-size` and `--overlap`. Lastly, the script makes use of `sentence-transformers/all-MiniLM-L6-v2` model to generate embeddings for each created chunk.
+By default, "under the hood" the following models are used:
 
-The next step of the project is to store the generated embeddings in a FAISS vector store.
+* `sentence-transformers/all-mpnet-base-v2` => Chunks embedding generation (`--embedding-model` flag)
+* `cross-encoder/ms-marco-MiniLM-L-6-v2` => Re-ranker of chunks relevance (`--cross-encoder-model` flag)
