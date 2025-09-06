@@ -29,9 +29,9 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 - [x] **Embedding generation** with CPU-friendly models (`sentence-transformers`)
 - [x] **Vector search** using *FAISS*
 - [x] **Basic retrieval pipeline** (query → embeddings → top-k chunk search)
-- [ ] **Lightweight LLM integration** (local small models)
-- [ ] **Q&A pipeline**
-- [ ] **CLI interface** for document querying
+- [x] **Lightweight LLM integration** (local small models)
+- [x] **Q&A pipeline**
+- [x] **CLI interface** for document querying
 - [ ] Optional **Streamlit Web UI**
 - [ ] **Docker deployment**
 
@@ -52,12 +52,12 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 
 - [x] Take a user query, embed it, and search for top-k chunks
 - [x] Return most relevant context to user
-- [ ] Format results into a prompt template
+- [x] Format results into a prompt template
 
 ### Stage 4 - Lightweight LLM Integration
 
-- [ ] Integrate a CPU-friendly model
-- [ ] Generate answers in retrieved context
+- [x] Integrate a CPU-friendly model
+- [x] Generate answers in retrieved context
 
 ### Stage 5 - CLI & Web Interface
 
@@ -68,7 +68,7 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 
 - [ ] Add `Dockerfile` for reproducible deployment
 - [ ] Write documentation and examples
-- [ ] Add tests for core components
+- [x] Add tests for core components
 
 ## 🔧 Tech Stack
 
@@ -99,14 +99,36 @@ source setup_env.sh
 
 ## Current progress
 
-The script below will preprocess the PDF-document via extracting its text and chunking it depending on `--chunk-size` and `--overlap`. It will then generate embeddings, store them in FAISS index and then conduct top-k similarity search given the provided `--query`, at the end displaying re-ranked chunks considered to be the most relevant to the query.
+The script below runs a Q&A pipeline going through the following stages:
+
+1. Retrieve the text from the source document located in the path passed in `--source-doc` flag, separating the pages into a list of *Langchain*'s `Document` objects.
+2. Use the resulting list of `Document`-s to separate them into *Regex*-preprocessed *chunks* in accordance with the values passed in `--chunk-size` and `--overlap`. 
+3. Generate embeddings for the created chunks. By default `sentence-transformers/all-mpnet-base-v2` model is used (as determined by `--embedding-model` flag).
+4. Build a FAISS index for the generated embeddings.
+5. Retrieve top-k chunk candidates for a given query (as determined by `--query` flag).
+6. Re-rank chunk candidates obtained in the previous stage with cross-encoder. By default `cross-encoder/ms-marco-MiniLM-L-6-v2` model is used (as determined by `--cross-encoder-model` flag).
+7. Compose a prompt using the obtained context and generate an answer with LLM. By default `google/flan-t5-small` model is used (as determined by `--gen-model` flag).
+
+> **Design detail**: Through trial and error, it has been observed that chunk order affects answer quality due to recency bias; therefore the most relevant chunks are injected closest to the query in the prompt. The script below additionally prints out the top-k retrieved chunks in order to get a sense of what kind of information is used during answer generation.
 
 ```bash
 python run.py --source-doc=articles/rnn_paper.pdf --query="What is an RNN?" --chunk-size=800 --overlap=100 --top-k=10 --verbose
 ```
 > Make sure to add some PDF document to `articles` folder first as well as set *HuggingFace* token via `hf auth login <HF-TOKEN>`.
 
-By default, "under the hood" the following models are used:
+## Current limitations
 
-* `sentence-transformers/all-mpnet-base-v2` => Chunks embedding generation (`--embedding-model` flag)
-* `cross-encoder/ms-marco-MiniLM-L-6-v2` => Re-ranker of chunks relevance (`--cross-encoder-model` flag)
+While this project demonstrates a minimal RAG pipeline running fully on CPU, there are several limitations to be aware of:
+
+* **Small language models** (e.g., `flan-t5-small`) often produce repetitive (unless controlled for) or shallow answers. 
+* **Context quality** depends heavily on chunking — some questions may retrieve irrelevant or incomplete passages.
+* **Limited preprocessing** — while basic regex cleaning reduces noise, more advanced normalization could improve retrieval.
+* **Single-document focus** — current pipeline is built for ingesting one document at a time, without multi-document management.
+
+## Future work
+
+* **Model improvements**: integrate larger open LLMs (e.g. LLaMA 2, Mistral) or API-based models for better fluency and accuracy.
+* **Better retrieval**: experiment with other re-ranking models to improve relevance of top results.
+* **UI integration**: add a simple Streamlit or FastAPI interface to make Q&A interactive.
+* **Metadata handling**: extend the pipeline with document hashes (SQLite or JSON) to prevent duplicate ingestion.
+* **Multi-document RAG**: scale pipeline to handle multiple sources and filter by document ID.
