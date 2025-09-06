@@ -6,6 +6,9 @@ from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from sentence_transformers import CrossEncoder, SentenceTransformer
+from transformers import pipeline
+
+from .preprocessing import clean_text
 
 
 class RetrievalPipeline:
@@ -17,21 +20,24 @@ class RetrievalPipeline:
 
     Args:
         source_doc_path (str | Path): Path to the source document.
+        gen_model_name (str, optional): Name of the text generation model. Defaults to "google/flan-t5-small".
         embedding_model_name (str, optional): Name of the SentenceTransformer embedding model.
             Defaults to "all-MiniLM-L6-v2".
-        cross_encoder_model_name (str, optional): Name of the cross-encoder model for reranking.
+        cross_encoder_model_name (str, optional): Name of the cross-encoder model for re-ranking.
             Defaults to "cross-encoder/ms-marco-MiniLM-L-6-v2".
     """
 
     def __init__(
         self,
         source_doc_path: str | Path,
+        gen_model_name: str = "google/flan-t5-small",
         embedding_model_name: str = "all-MiniLM-L6-v2",
         cross_encoder_model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
     ):
         self.source_doc_path = source_doc_path
         self.model = SentenceTransformer(embedding_model_name)
         self.cross_encoder = CrossEncoder(cross_encoder_model_name)
+        self.gen_model = pipeline("text2text-generation", model=gen_model_name)
 
     def __call__(
         self,
@@ -40,8 +46,8 @@ class RetrievalPipeline:
         chunk_size: int,
         overlap: int,
         verbose: bool = False,
-    ) -> list[str]:
-        """Runs the retrieval pipeline for a given query.
+    ) -> tuple[str, list[str], list[float]]:
+        """Runs the RAG pipeline for a given query.
 
         Args:
             query (str): The search query.
@@ -51,7 +57,7 @@ class RetrievalPipeline:
             verbose (bool, optional): If True, prints progress information. Defaults to False.
 
         Returns:
-            list[str]: Ranked relevant text chunks.
+            tuple[str, list[str], list[float]]: The generated answer from the LLM, the ranked candidates, and their scores.
         """
         # Stage 1: Load the document
         docs = self._load_document()
@@ -61,9 +67,7 @@ class RetrievalPipeline:
         # Stage 2: Chunk the document
         chunks = self._chunk_documents(docs, chunk_size=chunk_size, overlap=overlap)
         if verbose:
-            print(
-                f"[INFO] Chunked documents into {len(chunks)} chunks (chunk size={chunk_size}, overlap={overlap})"
-            )
+            print(f"[INFO] Chunked documents into {len(chunks)} chunks")
             print("[INFO] Generating embeddings...")
 
         # Stage 3: Generate embeddings
@@ -75,16 +79,26 @@ class RetrievalPipeline:
         index = self._build_faiss_index(embeddings)
         if verbose:
             print(f"[INFO] Built FAISS index with {index.ntotal} vectors")
-        
+
         # Stage 5: Retrieve top-k candidates for a given query
         candidates = self._query_faiss_index(
             index, query=query, chunks=chunks, top_k=top_k
         )
-        
-        # Stage 6: Rerank candidates with cross-encoder
-        ranked_candidates = self._rerank_with_cross_encoder(query, candidates)
+        if verbose:
+            print(f"[INFO] Retrieved {len(candidates)} candidate chunks")
 
-        return ranked_candidates
+        # Stage 6: Rerank candidates with cross-encoder
+        ranked_candidates, scores = self._rerank_with_cross_encoder(query, candidates)
+        if verbose:
+            print(f"[INFO] Reranked candidates")
+
+        # Stage 7: Composing a prompt and generating answer with LLM
+        if verbose:
+            print(f"[INFO] Generating answer...")
+        prompt = self._build_prompt(ranked_candidates, query)
+        answer = self._generate_answer(prompt)
+
+        return answer, ranked_candidates, scores
 
     def _load_document(self) -> list[Document]:
         """Loads the source document based on its file extension.
@@ -124,7 +138,7 @@ class RetrievalPipeline:
             chunk_overlap=overlap,
         )
         chunks = splitter.split_documents(docs)
-        chunks = [chunk.page_content for chunk in chunks]
+        chunks = [clean_text(chunk.page_content) for chunk in chunks]
 
         return chunks
 
@@ -178,7 +192,7 @@ class RetrievalPipeline:
         self,
         query: str,
         candidates: list[str],
-    ) -> list[str]:
+    ) -> tuple[list[str], list[float]]:
         """Reranks candidate chunks using a cross-encoder model.
 
         Args:
@@ -194,4 +208,48 @@ class RetrievalPipeline:
         ranked_candidates = [
             candidate for _, candidate in sorted(zip(scores, candidates), reverse=True)
         ]
-        return ranked_candidates
+        ranked_scores = [
+            score for score, _ in sorted(zip(scores, candidates), reverse=True)
+        ]
+        return ranked_candidates, ranked_scores
+
+    def _build_prompt(self, context_chunks: list[str], query: str) -> str:
+        """Builds a prompt for the LLM using retrieved context and the user query.
+
+        Args:
+            context_chunks (list[str]): Relevant text chunks.
+            query (str): User's question.
+
+        Returns:
+            str: Prompt for the LLM.
+        """
+        context = "\n\n".join(context_chunks[::-1])
+        prompt = (
+            "Use the following context to answer the question:\n"
+            f"Context:\n{context}\n\n"
+            f"Question: {query}\n"
+            "Answer:"
+        )
+        return prompt
+
+    def _generate_answer(self, prompt: str) -> str:
+        """Generates an answer using the LLM based on the provided prompt.
+
+        Args:
+            prompt (str): The prompt containing context and the user's question.
+
+        Returns:
+            str: Generated answer.
+        """
+        answer = self.gen_model(
+            prompt,
+            max_new_tokens=120,
+            min_new_tokens=30,
+            do_sample=True,
+            top_p=0.9,
+            temperature=0.7,
+            no_repeat_ngram_size=3,
+        )
+        answer = answer[0]["generated_text"]
+
+        return answer
