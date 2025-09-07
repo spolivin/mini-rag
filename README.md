@@ -47,6 +47,8 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 - [x] Use `sentence-transformers/all-MiniLM-L6-v2` for chunk embeddings
 - [x] Store embeddings in FAISS index
 - [x] Implement similarity search
+- [x] Implement hashing to keep track of documents with embeddings already computed (taking into account chunk size and overlap)
+- [] Integrate FAISS index for embeddings with chunks tracking in SQLite DB
 
 ### Stage 3 - Retrieval pipeline
 
@@ -116,6 +118,8 @@ python run.py --source-doc=articles/rnn_paper.pdf --query="What is an RNN?" --ch
 ```
 > Make sure to add some PDF document to `articles` folder first as well as set *HuggingFace* token via `hf auth login <HF-TOKEN>`.
 
+The most recent addition is the implementation of embeddings tracking via checking whether the document (or better to say, its chunks) has already been embedded. Thus, the script will not run embeddings generation and add them to FAISS index (or building one) if these are already present in the index. In this case not only the document hash is taken into account but also chunk size as well as overlap.
+
 ## Current limitations
 
 While this project demonstrates a minimal RAG pipeline running fully on CPU, there are several limitations to be aware of:
@@ -124,6 +128,7 @@ While this project demonstrates a minimal RAG pipeline running fully on CPU, the
 * **Context quality** depends heavily on chunking — some questions may retrieve irrelevant or incomplete passages.
 * **Limited preprocessing** — while basic regex cleaning reduces noise, more advanced normalization could improve retrieval.
 * **Single-document focus** — current pipeline is built for ingesting one document at a time, without multi-document management.
+* **Per-document FAISS indices** - initializing indices for each `document-chunk_size-overlap` leads to the accumulation of a large number of files taking space.
 
 ## Future work
 
@@ -132,3 +137,4 @@ While this project demonstrates a minimal RAG pipeline running fully on CPU, the
 * **UI integration**: add a simple Streamlit or FastAPI interface to make Q&A interactive.
 * **Metadata handling**: extend the pipeline with document hashes (SQLite or JSON) to prevent duplicate ingestion.
 * **Multi-document RAG**: scale pipeline to handle multiple sources and filter by document ID.
+* **FAISS integration with SQLite**: store chunks for the processed documents in a SQLite database to be retrieved based on embeddings stored in a common single FAISS index.
