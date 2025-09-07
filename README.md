@@ -48,7 +48,7 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 - [x] Store embeddings in FAISS index
 - [x] Implement similarity search
 - [x] Implement hashing to keep track of documents with embeddings already computed (taking into account chunk size and overlap)
-- [] Integrate FAISS index for embeddings with chunks tracking in SQLite DB
+- [ ] Integrate FAISS index for embeddings with chunks tracking in SQLite DB
 
 ### Stage 3 - Retrieval pipeline
 
