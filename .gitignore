@@ -167,3 +167,4 @@ old/
 .DS_Store
 
 *.pdf
+*.faiss
