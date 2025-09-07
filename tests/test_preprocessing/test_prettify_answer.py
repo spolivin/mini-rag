@@ -19,6 +19,6 @@ from mini_rag.preprocessing import prettify_answer
     ],
 )
 def test_prettify_answer(input, output):
-    """Tests the summary prettification function."""
+    """Tests the prettification function."""
     prettified = prettify_answer(input)
     assert prettified == output
