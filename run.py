@@ -1,6 +1,6 @@
 import argparse
 
-from mini_rag.pipeline import RetrievalPipeline
+from mini_rag.pipeline import RAGPipeline
 
 parser = argparse.ArgumentParser(description="Process some documents.")
 parser.add_argument(
@@ -41,7 +41,7 @@ args = parser.parse_args()
 
 def main():
     # Initialize the retrieval pipeline
-    pipeline = RetrievalPipeline(
+    pipeline = RAGPipeline(
         source_doc_path=args.source_doc,
         gen_model_name=args.gen_model,
         embedding_model_name=args.embedding_model,
