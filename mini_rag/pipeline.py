@@ -1,3 +1,5 @@
+import hashlib
+import os
 from pathlib import Path
 
 import faiss
@@ -8,10 +10,10 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from sentence_transformers import CrossEncoder, SentenceTransformer
 from transformers import pipeline
 
-from .preprocessing import clean_text
+from .preprocessing import clean_text, prettify_answer
 
 
-class RetrievalPipeline:
+class RAGPipeline:
     """A retrieval pipeline for extracting and ranking relevant chunks from a document.
 
     This pipeline loads a document (PDF, TXT, or MD), splits it into chunks,
@@ -39,6 +41,27 @@ class RetrievalPipeline:
         self.cross_encoder = CrossEncoder(cross_encoder_model_name)
         self.gen_model = pipeline("text2text-generation", model=gen_model_name)
 
+    @staticmethod
+    def get_file_hash(path: str | Path, chunk_size: int, overlap: int) -> str:
+        """Compute a hash of the file contents and chunking parameters.
+
+        Args:
+            path (str | Path): Path to a file.
+            chunk_size (int): Size of a chunk.
+            overlap (int): Overlap.
+
+        Returns:
+            str: Computed hash for a source file.
+        """
+        hasher = hashlib.sha256()
+        with open(path, "rb") as f:
+            while chunk := f.read(8192):
+                hasher.update(chunk)
+        # Adding chunking parameters to the hash
+        param_str = f"{chunk_size}_{overlap}".encode()
+        hasher.update(param_str)
+        return hasher.hexdigest()
+
     def __call__(
         self,
         query: str,
@@ -59,6 +82,11 @@ class RetrievalPipeline:
         Returns:
             tuple[str, list[str], list[float]]: The generated answer from the LLM, the ranked candidates, and their scores.
         """
+        file_hash = self.get_file_hash(
+            path=self.source_doc_path, chunk_size=chunk_size, overlap=overlap
+        )
+        index_path = self._get_index_path(file_hash=file_hash)
+
         # Stage 1: Load the document
         docs = self._load_document()
         if verbose:
@@ -68,17 +96,24 @@ class RetrievalPipeline:
         chunks = self._chunk_documents(docs, chunk_size=chunk_size, overlap=overlap)
         if verbose:
             print(f"[INFO] Chunked documents into {len(chunks)} chunks")
-            print("[INFO] Generating embeddings...")
 
-        # Stage 3: Generate embeddings
-        embeddings = self._generate_embeddings(chunks)
-        if verbose:
-            print(f"[INFO] Generated embeddings with shape {embeddings.shape}")
+        if not os.path.exists(index_path):
+            # Stage 3: Generate embeddings
+            if verbose:
+                print("[INFO] Generating embeddings...")
+            embeddings = self._generate_embeddings(chunks)
+            if verbose:
+                print(f"[INFO] Generated embeddings with shape {embeddings.shape}")
 
-        # Stage 4: Build FAISS index
-        index = self._build_faiss_index(embeddings)
-        if verbose:
-            print(f"[INFO] Built FAISS index with {index.ntotal} vectors")
+            # Stage 4: Build FAISS index
+            index = self._build_faiss_index(embeddings)
+            faiss.write_index(index, index_path)
+            if verbose:
+                print(f"[INFO] Built FAISS index with {index.ntotal} vectors")
+        else:
+            index = faiss.read_index(index_path)
+            if verbose:
+                print(f"[INFO] Re-used saved embeddings")
 
         # Stage 5: Retrieve top-k candidates for a given query
         candidates = self._query_faiss_index(
@@ -98,7 +133,13 @@ class RetrievalPipeline:
         prompt = self._build_prompt(ranked_candidates, query)
         answer = self._generate_answer(prompt)
 
-        return answer, ranked_candidates, scores
+        return prettify_answer(answer), ranked_candidates, scores
+
+    def _get_index_path(self, file_hash: str) -> str:
+        """Return the path for the FAISS index file."""
+        index_dir = Path("indexes")
+        index_dir.mkdir(exist_ok=True)
+        return str(index_dir / f"{file_hash}.faiss")
 
     def _load_document(self) -> list[Document]:
         """Loads the source document based on its file extension.
@@ -243,7 +284,7 @@ class RetrievalPipeline:
         """
         answer = self.gen_model(
             prompt,
-            max_new_tokens=120,
+            max_new_tokens=200,
             min_new_tokens=30,
             do_sample=True,
             top_p=0.9,
