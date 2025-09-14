@@ -4,9 +4,6 @@ import nltk
 
 from .downloads import ensure_nltk_resource
 
-ensure_nltk_resource(resource_id="tokenizers/punkt")
-ensure_nltk_resource(resource_id="tokenizers/punkt_tab")
-
 
 def clean_text(text: str) -> str:
     """
@@ -42,6 +39,8 @@ def prettify_answer(summary: str) -> str:
     Returns:
         str: Prettified text.
     """
+    ensure_nltk_resource(resource_id="tokenizers/punkt")
+    ensure_nltk_resource(resource_id="tokenizers/punkt_tab")
     # Splitting input into sentences and capitalizing each one
     sentences = nltk.tokenize.sent_tokenize(summary)
     prettified_summary = " ".join(s.capitalize() for s in sentences)
