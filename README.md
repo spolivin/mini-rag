@@ -48,7 +48,7 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 - [x] Store embeddings in FAISS index
 - [x] Implement similarity search
 - [x] Implement hashing to keep track of documents with embeddings already computed (taking into account chunk size and overlap)
-- [ ] Integrate FAISS index for embeddings with chunks tracking in SQLite DB
+- [x] Integrate FAISS index for embeddings with chunks tracking in SQLite DB
 
 ### Stage 3 - Retrieval pipeline
 
@@ -103,22 +103,56 @@ source setup_env.sh
 
 The script below runs a Q&A pipeline going through the following stages:
 
-1. Retrieve the text from the source document located in the path passed in `--source-doc` flag, separating the pages into a list of *Langchain*'s `Document` objects.
-2. Use the resulting list of `Document`-s to separate them into *Regex*-preprocessed *chunks* in accordance with the values passed in `--chunk-size` and `--overlap`. 
-3. Generate embeddings for the created chunks. By default `sentence-transformers/all-mpnet-base-v2` model is used (as determined by `--embedding-model` flag).
+1. Retrieve the text from the source document, separating the pages into a list of *Langchain*'s `Document` objects.
+2. Use the resulting list of `Document`-s to separate them into *Regex*-preprocessed *chunks*. 
+3. Generate embeddings for the created chunks and record document metadata and chunks in a local SQLite database.
 4. Build a FAISS index for the generated embeddings.
-5. Retrieve top-k chunk candidates for a given query (as determined by `--query` flag).
-6. Re-rank chunk candidates obtained in the previous stage with cross-encoder. By default `cross-encoder/ms-marco-MiniLM-L-6-v2` model is used (as determined by `--cross-encoder-model` flag).
-7. Compose a prompt using the obtained context and generate an answer with LLM. By default `google/flan-t5-small` model is used (as determined by `--gen-model` flag).
+5. Retrieve top-k chunk candidates for a given query.
+6. Re-rank chunk candidates obtained in the previous stage with cross-encoder.
+7. Compose a prompt using the obtained context and generate an answer with LLM.
 
-> **Design detail**: Through trial and error, it has been observed that chunk order affects answer quality due to recency bias; therefore the most relevant chunks are injected closest to the query in the prompt. The script below additionally prints out the top-k retrieved chunks in order to get a sense of what kind of information is used during answer generation.
+### Design details
+
+* Through trial and error, it has been observed that chunk order affects answer quality due to *recency bias*; therefore the most relevant chunks are injected closest to the query in the prompt. The script below additionally prints out the top-k retrieved chunks in order to get a sense of what kind of information is used during answer generation.
+
+* The most recent addition of the following project is the integration of FAISS index with SQLite database. More specifically, when running the pipeline, document/chunks metadata as well as the embeddings generated thereof are stored and tracked using local database and FAISS index. The following directory structure is created:
+
+```
+mini-rag/
+├── vector_store/
+    ├── processed_documents.db
+    └── vectors.faiss
+```
+> Local DB named `processed_documents.db` stored information about processed documents in `documents` table as well as the retrieved chunks in `chunks` table. FAISS index `vectors.faiss` stores embeddings of all documents' chunks that have gone through the pipeline and are used during similarity search.
+
+* Avoiding storing multiple FAISS indices is solved by having one common FAISS index. While supporting working with multiple documents (distinguished by hashes), a problem can easily occur during similarity search due to algorithm retrieving embeddings belonging to other documents. The issue is solved by using "overfetching" to retrieve multiple similar chunks and then filtering stage where only chunks belonging to a specific unique document hash are used. The result is shrunk down to *top-k* results.
+
+* In order to keep the RAG system as simplistic as possible and not to overcomplicate it with more functionality (such as support for different embedding dimensions and chunking configurations), the system currently employs fixed default chunking parameters as wekk as embedding, re-ranking and text generation models which can be found in this [module](./mini_rag/configurations/).
+
+### Pipeline
+
+The pipeline can be launched in one of the following ways:
 
 ```bash
-python run.py --source-doc=articles/rnn_paper.pdf --query="What is an RNN?" --chunk-size=800 --overlap=100 --top-k=10 --verbose
+python run.py --source-doc=articles/rnn_paper.pdf --query="What is an RNN?" --top-k=10
+```
+
+or using the config:
+
+```bash
+python run.py --config-file=config.yaml
 ```
 > Make sure to add some PDF document to `articles` folder first as well as set *HuggingFace* token via `hf auth login <HF-TOKEN>`.
 
-The most recent addition is the implementation of embeddings tracking via checking whether the document (or better to say, its chunks) has already been embedded. Thus, the script will not run embeddings generation and add them to FAISS index (or building one) if these are already present in the index. In this case not only the document hash is taken into account but also chunk size as well as overlap.
+Running the pipeline will create the above directory structure including a SQLite database called `processed_documents.db`. We could optionally take a look at what information has been saved there in `documents` and `chunks` tables:
+
+```bash
+# Listing all documents that have gone through the pipeline
+sqlite3 vector_store/processed_documents.db < sql_scripts/show_documents.sql
+
+# Showing the first five rows with chunks for each document
+sqlite3 vector_store/processed_documents.db < sql_scripts/show_chunks.sql
+```
 
 ## Current limitations
 
@@ -127,14 +161,15 @@ While this project demonstrates a minimal RAG pipeline running fully on CPU, the
 * **Small language models** (e.g., `flan-t5-small`) often produce repetitive (unless controlled for) or shallow answers. 
 * **Context quality** depends heavily on chunking — some questions may retrieve irrelevant or incomplete passages.
 * **Limited preprocessing** — while basic regex cleaning reduces noise, more advanced normalization could improve retrieval.
-* **Single-document focus** — current pipeline is built for ingesting one document at a time, without multi-document management.
-* **Per-document FAISS indices** - initializing indices for each `document-chunk_size-overlap` leads to the accumulation of a large number of files taking space.
 
 ## Future work
 
 * **Model improvements**: integrate larger open LLMs (e.g. LLaMA 2, Mistral) or API-based models for better fluency and accuracy.
 * **Better retrieval**: experiment with other re-ranking models to improve relevance of top results.
 * **UI integration**: add a simple Streamlit or FastAPI interface to make Q&A interactive.
+
+## Completed goals
+
 * **Metadata handling**: extend the pipeline with document hashes (SQLite or JSON) to prevent duplicate ingestion.
 * **Multi-document RAG**: scale pipeline to handle multiple sources and filter by document ID.
 * **FAISS integration with SQLite**: store chunks for the processed documents in a SQLite database to be retrieved based on embeddings stored in a common single FAISS index.
