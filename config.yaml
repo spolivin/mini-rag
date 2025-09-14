@@ -1,0 +1,3 @@
+source_doc: "articles/rnn_paper.pdf"
+query: "What are Recurrent Neural Networks?"
+top_k: 3
