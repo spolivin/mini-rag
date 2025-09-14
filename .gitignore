@@ -168,3 +168,4 @@ old/
 
 *.pdf
 *.faiss
+*.db
