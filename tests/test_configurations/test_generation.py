@@ -1,13 +1,9 @@
-from mini_rag.configurations import TextGenerationConfig, TextGenerationModel
-
-
-def test_text_generation_model():
-    assert TextGenerationModel.model_name == "google/flan-t5-large"
+from mini_rag.configurations import TextGenerationConfig
 
 
 def test_text_generation_config():
     gen_params = TextGenerationConfig()
-    assert gen_params.max_new_tokens == 450
+    assert gen_params.max_new_tokens == 250
     assert gen_params.min_new_tokens == 30
     assert gen_params.do_sample == True
     assert gen_params.top_p == 0.9
