@@ -22,6 +22,7 @@ class FaissDB:
         embedding_model_name (str): Name of the SentenceTransformer embedding model.
         chunk_size (int): Chunk size into which to split the document text.
         overlap (int): Number of overlapping words to consider during text chunking.
+        max_vectors (int): Number of vectors to retrieve from FAISS index.
         base_dir (str, optional): Directory where to save FAISS index and SQLite database.
             Defaults to "vector_store".
         db_filename (str, optional): Name of a SQLite database. Defaults to "chunks.db".
@@ -33,6 +34,7 @@ class FaissDB:
         embedding_model_name: str,
         chunk_size: int,
         overlap: int,
+        max_vectors: int,
         base_dir: str = "vector_store",
         db_filename: str = "chunks.db",
         index_filename: str = "index.faiss",
@@ -44,6 +46,9 @@ class FaissDB:
         # Setting chunk size and overlap values
         self.chunk_size = chunk_size
         self.overlap = overlap
+
+        # Setting the maximum number of vectors to retrieve from FAISS index
+        self.max_vectors = max_vectors
 
         # Creating or loading existing FAISS index
         self.base_dir = base_dir
@@ -146,27 +151,23 @@ class FaissDB:
     # ---------------------------
     # SIMILARITY SEARCH
     # ---------------------------
-    def run_similarity_search(self, query, k: int, overfetch: int = 10) -> list[str]:
-        """Retrieves top-k most similar chunks to the passed query.
+    def run_similarity_search(self, query) -> list[str]:
+        """Retrieves the most similar chunks to the passed query.
 
         Method generates an embedding of a query to be then compared to
-        saved embeddings in order to find top-k most similar ones. In order
-        to make sure to retrieve top-k results and avoid mixing up embeddings
-        of other documents in the index, overfetching is applied.
+        saved embeddings in order to find the most similar ones.
 
         Args:
             query (str): Query to the document.
-            k (int): Maximum number of results to search for.
-            overfetch (int, optional): Results overfetching factor. Defaults to 10.
 
         Returns:
-            list[str]: List of top-k chunks most similar to the query.
+            list[str]: List of chunks most similar to the query.
         """
         # Computing embedding of a query
         query_emb = self._generate_embeddings(texts=[query])
 
         # Running similarity search between saved embeddings
-        _, I = self.index.search(query_emb, k * overfetch)
+        _, I = self.index.search(query_emb, self.max_vectors)
         faiss_indices = [int(idx) + 1 for idx in I[0]]
 
         # Retrieving chunks in accordance with the retrieved FAISS indices and document hash value
@@ -182,7 +183,7 @@ class FaissDB:
 
         retrieved_chunks = [result[0] for result in cur.fetchall()]
 
-        return retrieved_chunks[:k]
+        return retrieved_chunks
 
     # ---------------------------
     # UTILITIES

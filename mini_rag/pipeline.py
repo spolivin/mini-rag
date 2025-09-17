@@ -1,12 +1,6 @@
 from pathlib import Path
 
-from .configurations import (
-    ChunkingConfig,
-    EmbeddingsGenerationModel,
-    RerankerModel,
-    TextGenerationConfig,
-    TextGenerationModel,
-)
+from .configurations import RAGConfig, TextGenerationConfig
 from .pipeline_components import AnswerGenerator, FaissDB, PromptBuilder, Reranker
 
 
@@ -24,17 +18,23 @@ class RAGPipeline:
     """
 
     def __init__(self, source_doc_path: str | Path):
+
+        # Setting path to the document
         self.source_doc_path = source_doc_path
 
+        # Instantiating fixed RAG parameters
+        self.rag_config = RAGConfig()
+
         # Reranker model for ordering retrieved chunks by relevance to the query
-        self.cross_encoder = Reranker(model_name=RerankerModel.model_name)
+        self.cross_encoder = Reranker(model_name=self.rag_config.reranker_model_name)
 
         # Builder for the RAG-prompt to the LLM
         self.prompt_builder = PromptBuilder()
 
         # LLM for answering the question
         self.gen_model = AnswerGenerator(
-            model_name=TextGenerationModel.model_name, gen_params=TextGenerationConfig()
+            model_name=self.rag_config.generation_model_name,
+            gen_params=TextGenerationConfig(),
         )
 
     def __call__(self, query: str, top_k: int) -> tuple[str, list[str], list[float]]:
@@ -51,22 +51,28 @@ class RAGPipeline:
         # RETRIEVAL OF CHUNKS
         # ---------------------------
         with FaissDB(
-            embedding_model_name=EmbeddingsGenerationModel.model_name,
-            chunk_size=ChunkingConfig.chunk_size,
-            overlap=ChunkingConfig.overlap,
+            embedding_model_name=self.rag_config.embedding_model_name,
+            chunk_size=self.rag_config.chunk_size,
+            overlap=self.rag_config.overlap,
+            max_vectors=self.rag_config.max_vectors,
             base_dir="vector_store",
             db_filename="processed_documents.db",
             index_filename="vectors.faiss",
         ) as faiss_db:
+
+            # Ingesting a new document to the DB
             faiss_db.ingest_document(source_doc_path=self.source_doc_path)
 
-            results = faiss_db.run_similarity_search(query=query, k=top_k)
+            # Retrieving the most similar chunks to the query
+            results = faiss_db.run_similarity_search(query=query)
 
-        # ---------------------------
-        # RE-RANKING RETRIEVED CHUNKS
-        # ---------------------------
+        # ------------------------------------------------------------
+        # RE-RANKING RETRIEVED CHUNKS AND CHOOSING TOP-K RELEVANT ONES
+        # ------------------------------------------------------------
         ranked_candidates, ranked_scores = self.cross_encoder(
-            query=query, candidates=results
+            query=query,
+            candidates=results,
+            top_k=top_k,
         )
 
         # ---------------------------
