@@ -8,3 +8,5 @@ faiss-cpu
 nltk
 pyyaml
 pytest
+accelerate
+bitsandbytes

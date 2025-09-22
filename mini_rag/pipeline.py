@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from .configurations import RAGConfig, TextGenerationConfig
-from .pipeline_components import AnswerGenerator, FaissDB, PromptBuilder, Reranker
+from .pipeline_components import AnswerGenerator, FaissDB, Reranker
 
 
 class RAGPipeline:
@@ -27,9 +27,6 @@ class RAGPipeline:
 
         # Reranker model for ordering retrieved chunks by relevance to the query
         self.cross_encoder = Reranker(model_name=self.rag_config.reranker_model_name)
-
-        # Builder for the RAG-prompt to the LLM
-        self.prompt_builder = PromptBuilder()
 
         # LLM for answering the question
         self.gen_model = AnswerGenerator(
@@ -76,13 +73,8 @@ class RAGPipeline:
         )
 
         # ---------------------------
-        # BUILDING A RAG-PROMPT
-        # ---------------------------
-        prompt = self.prompt_builder(context_chunks=ranked_candidates, query=query)
-
-        # ---------------------------
         # GENERATING A REPLY FROM LLM
         # ---------------------------
-        answer = self.gen_model(prompt)
+        answer = self.gen_model(query, ranked_candidates)
 
         return answer, ranked_candidates, ranked_scores

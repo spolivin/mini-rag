@@ -1,7 +1,7 @@
-from transformers import pipeline
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from ..configurations import TextGenerationConfig
-from ..preprocessing import prettify_answer
 
 
 class AnswerGenerator:
@@ -17,12 +17,47 @@ class AnswerGenerator:
         self,
         model_name: str,
         gen_params: TextGenerationConfig,
-        task: str = "text2text-generation",
     ):
-        self.model = pipeline(task=task, model=model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name, device_map="auto", load_in_4bit=True, torch_dtype=torch.float16
+        )
         self.gen_params = gen_params.__dict__
+        self.system_prompt = "[INST] <<SYS>> You are a helpful assistant. <</SYS>>\n"
 
-    def __call__(self, prompt: str) -> str:
+    def _build_llama_inputs(
+        self,
+        context: str,
+        user_query: str,
+        max_length: int = None,
+        truncation_side: str = "left",
+    ):
+        if max_length is None:
+            max_length = self.tokenizer.model_max_length
+
+        sys_ids = self.tokenizer(self.system_prompt, add_special_tokens=False)[
+            "input_ids"
+        ]
+        query_ids = self.tokenizer(user_query, add_special_tokens=False)["input_ids"]
+
+        budget = max_length - (len(sys_ids) + len(query_ids))
+        if budget <= 0:
+            raise ValueError("System prompt + query exceed max length!")
+
+        context = " ".join(context[::-1])
+        ctx_ids = self.tokenizer(
+            context,
+            add_special_tokens=False,
+            truncation=True,
+            max_length=budget,
+            truncation_side=truncation_side,
+        )["input_ids"]
+
+        final_ids = sys_ids + ctx_ids + query_ids
+
+        return {"input_ids": final_ids}
+
+    def __call__(self, query: str, context: list[str]) -> str:
         """Generates an answer using the LLM based on the provided prompt.
 
         Args:
@@ -32,7 +67,11 @@ class AnswerGenerator:
             str: Generated answer.
         """
         print("Generating a response from LLM...")
-        answer = self.model(prompt, **self.gen_params)
-        answer = answer[0]["generated_text"]
+        query += " [/INST]"
 
-        return prettify_answer(answer)
+        inputs = self._build_llama_inputs(context, query)
+        input_ids = torch.tensor([inputs["input_ids"]]).to(self.model.device)
+
+        outputs = self.model.generate(input_ids, **self.gen_params)
+
+        return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
