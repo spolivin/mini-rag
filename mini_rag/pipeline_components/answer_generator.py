@@ -29,11 +29,13 @@ class AnswerGenerator:
         self,
         context: str,
         user_query: str,
-        max_length: int = None,
-        truncation_side: str = "left",
+        max_length: int = 4096,
     ):
         if max_length is None:
-            max_length = self.tokenizer.model_max_length
+            if self.model is not None and hasattr(self.model.config, "max_position_embeddings"):
+                max_length = self.model.config.max_position_embeddings
+            else:
+                max_length = 4096
 
         sys_ids = self.tokenizer(self.system_prompt, add_special_tokens=False)[
             "input_ids"
@@ -50,7 +52,6 @@ class AnswerGenerator:
             add_special_tokens=False,
             truncation=True,
             max_length=budget,
-            truncation_side=truncation_side,
         )["input_ids"]
 
         final_ids = sys_ids + ctx_ids + query_ids
@@ -72,6 +73,11 @@ class AnswerGenerator:
         inputs = self._build_llama_inputs(context, query)
         input_ids = torch.tensor([inputs["input_ids"]]).to(self.model.device)
 
-        outputs = self.model.generate(input_ids, **self.gen_params)
+        outputs = self.model.generate(
+            input_ids, 
+            return_dict_in_generate=True,
+            output_scores=False,
+            **self.gen_params,
+        )
 
-        return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        return self.tokenizer.decode(outputs.sequences[0][input_ids.shape[-1]:], skip_special_tokens=True)
