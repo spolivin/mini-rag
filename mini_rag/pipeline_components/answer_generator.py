@@ -23,13 +23,18 @@ class AnswerGenerator:
             model_name, device_map="auto", load_in_4bit=True, torch_dtype=torch.float16
         )
         self.gen_params = gen_params.__dict__
-        self.system_prompt = "[INST] <<SYS>> You are a helpful assistant. <</SYS>>\n"
+        self.system_prompt = (
+            "[INST] <<SYS>> You are a concise assistant. "
+            "Use the provided context to answer in 1-2 sentences. "
+            "Do not include introductions or sections. If not in the context, say 'I don't know.'\n"
+            "<</SYS>>\n\n"
+        )
 
     def _build_llama_inputs(
         self,
         context: str,
         user_query: str,
-        max_length: int = 4096,
+        max_length: int = None,
     ):
         if max_length is None:
             if self.model is not None and hasattr(self.model.config, "max_position_embeddings"):
@@ -46,7 +51,8 @@ class AnswerGenerator:
         if budget <= 0:
             raise ValueError("System prompt + query exceed max length!")
 
-        context = " ".join(context[::-1])
+        context = "\n\n".join(context[::-1])
+        context = "Context:\n" + context
         ctx_ids = self.tokenizer(
             context,
             add_special_tokens=False,
@@ -68,7 +74,7 @@ class AnswerGenerator:
             str: Generated answer.
         """
         print("Generating a response from LLM...")
-        query += " [/INST]"
+        query = f"Question:\n{query}\n[/INST]"
 
         inputs = self._build_llama_inputs(context, query)
         input_ids = torch.tensor([inputs["input_ids"]]).to(self.model.device)
