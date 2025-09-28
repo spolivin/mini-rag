@@ -1,9 +1,5 @@
 import re
 
-import nltk
-
-from .downloads import ensure_nltk_resource
-
 
 def clean_text(text: str) -> str:
     """

@@ -5,7 +5,6 @@ huggingface_hub
 huggingface_hub[hf_xet]
 sentence-transformers
 faiss-cpu
-nltk
 pyyaml
 pytest
 accelerate
