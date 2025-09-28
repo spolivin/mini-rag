@@ -27,24 +27,3 @@ def clean_text(text: str) -> str:
     text = re.sub(r"\s+([.,!?])", r"\1", text).strip()
 
     return text
-
-
-def prettify_answer(summary: str) -> str:
-    """
-    Corrects the format problems of LLM-generated response.
-
-    Args:
-        summary (str): Text of a response.
-
-    Returns:
-        str: Prettified text.
-    """
-    ensure_nltk_resource(resource_id="tokenizers/punkt")
-    ensure_nltk_resource(resource_id="tokenizers/punkt_tab")
-    # Splitting input into sentences and capitalizing each one
-    sentences = nltk.tokenize.sent_tokenize(summary)
-    prettified_summary = " ".join(s.capitalize() for s in sentences)
-    prettified_summary = re.sub(r"\s+([.,!?])", r"\1", prettified_summary)
-    prettified_summary = re.sub(r"\s+", " ", prettified_summary)
-
-    return prettified_summary

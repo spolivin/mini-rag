@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 from ..configurations import TextGenerationConfig
 
@@ -19,8 +19,18 @@ class AnswerGenerator:
         gen_params: TextGenerationConfig,
     ):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+        )
         self.model = AutoModelForCausalLM.from_pretrained(
-            model_name, device_map="auto", load_in_4bit=True, torch_dtype=torch.float16
+            model_name,
+            device_map="auto",
+            quantization_config=bnb_config,
+            trust_remote_code=True,
         )
         self.gen_params = gen_params.__dict__
         self.system_prompt = (
@@ -37,7 +47,9 @@ class AnswerGenerator:
         max_length: int = None,
     ):
         if max_length is None:
-            if self.model is not None and hasattr(self.model.config, "max_position_embeddings"):
+            if self.model is not None and hasattr(
+                self.model.config, "max_position_embeddings"
+            ):
                 max_length = self.model.config.max_position_embeddings
             else:
                 max_length = 4096
@@ -80,10 +92,12 @@ class AnswerGenerator:
         input_ids = torch.tensor([inputs["input_ids"]]).to(self.model.device)
 
         outputs = self.model.generate(
-            input_ids, 
+            input_ids,
             return_dict_in_generate=True,
             output_scores=False,
             **self.gen_params,
         )
 
-        return self.tokenizer.decode(outputs.sequences[0][input_ids.shape[-1]:], skip_special_tokens=True)
+        return self.tokenizer.decode(
+            outputs.sequences[0][input_ids.shape[-1]:], skip_special_tokens=True
+        )
