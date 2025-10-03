@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from .configurations import RAGConfig, TextGenerationConfig
-from .pipeline_components import AnswerGenerator, FaissDB, Reranker
+from .configurations import RAGConfig
+from .pipeline_components import FaissDB, LLMWrapper, Reranker
 
 
 class RAGPipeline:
@@ -29,9 +29,8 @@ class RAGPipeline:
         self.cross_encoder = Reranker(model_name=self.rag_config.reranker_model_name)
 
         # LLM for answering the question
-        self.gen_model = AnswerGenerator(
+        self.gen_model = LLMWrapper(
             model_name=self.rag_config.generation_model_name,
-            gen_params=TextGenerationConfig(),
         )
 
     def __call__(self, query: str, top_k: int) -> tuple[str, list[str], list[float]]:
