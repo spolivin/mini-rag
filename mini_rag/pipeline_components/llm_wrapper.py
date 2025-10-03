@@ -24,7 +24,7 @@ class LLMWrapper:
         self.gen_params = TextGenerationConfig().__dict__
         self.system_prompt = (
             "You are a concise assistant. "
-            "Use the provided context to answer in 1-2 sentences. "
+            "Use the provided context to answer in 4-5 sentences. "
             "Do not include introductions or sections. If not in the context, say 'I don't know.'"
         )
         self.max_length = getattr(self.model.config, "max_position_embeddings", 4096)
@@ -58,6 +58,8 @@ class LLMWrapper:
         prompt = self._build_prompt(self.system_prompt, context, user_query)
         input_ids = self.tokenizer(
             prompt,
+            add_special_tokens=False,
+            truncation=True,
             max_length=self.max_length,
             return_tensors="pt",
         ).input_ids.to(self.model.device)
