@@ -1,3 +1,5 @@
+import re
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
@@ -17,6 +19,7 @@ class LLMWrapper:
         )
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
+            use_safetensors=True,
             device_map="auto",
             quantization_config=bnb_config,
             trust_remote_code=True,
@@ -78,6 +81,12 @@ class LLMWrapper:
             **self.gen_params,
         )
 
-        return self.tokenizer.decode(
-            outputs.sequences[0][input_ids.shape[-1] :], skip_special_tokens=True
+        llm_response = self.tokenizer.decode(
+            outputs.sequences[0][input_ids.shape[-1] :],
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True,
         )
+
+        llm_response = re.sub(r"([a-z])([A-Z])", r"\1 \2", llm_response).strip()
+
+        return llm_response
