@@ -16,7 +16,8 @@ class RAGConfig:
 
     embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     reranker_model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-    generation_model_name: str = "meta-llama/Llama-2-7b-chat-hf"
+    llama_model_name: str = "meta-llama/Llama-2-7b-chat-hf"
+    mistral_model_name: str = "mistralai/Mistral-7B-Instruct-v0.3"
     chunk_size: int = 500
     overlap: int = 100
     max_vectors: int = 30

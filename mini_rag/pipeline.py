@@ -5,7 +5,7 @@ from .pipeline_components import FaissDB, LLMWrapper, Reranker
 
 
 class RAGPipeline:
-    """A retrieval pipeline for retieving relevant chunks from a document and generating
+    """A retrieval pipeline for retrieving relevant chunks from a document and generating
     and answer for the query.
 
     This pipeline loads a document (PDF, TXT, or MD), splits it into chunks,
@@ -15,9 +15,11 @@ class RAGPipeline:
 
     Args:
         source_doc_path (str | Path): Path to the source document.
+        generation_model_family (str): The family of the generation model to use ("llama" or "mistral").
     """
 
-    def __init__(self, source_doc_path: str | Path):
+    def __init__(self, source_doc_path: str | Path, generation_model_family: str):
+        """Initializes the RAGPipeline with the specified document and generation model."""
 
         # Setting path to the document
         self.source_doc_path = source_doc_path
@@ -29,9 +31,18 @@ class RAGPipeline:
         self.cross_encoder = Reranker(model_name=self.rag_config.reranker_model_name)
 
         # LLM for answering the question
-        self.gen_model = LLMWrapper(
-            model_name=self.rag_config.generation_model_name,
-        )
+        if generation_model_family == "llama":
+            self.gen_model = LLMWrapper(
+                model_name=self.rag_config.llama_model_name,
+            )
+        elif generation_model_family == "mistral":
+            self.gen_model = LLMWrapper(
+                model_name=self.rag_config.mistral_model_name,
+            )
+        else:
+            raise ValueError(
+                f"Unknown generation model family: {generation_model_family}"
+            )
 
     def __call__(self, query: str, top_k: int) -> tuple[str, list[str], list[float]]:
         """Runs the RAG pipeline for a given query.
