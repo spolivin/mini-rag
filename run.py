@@ -17,6 +17,9 @@ parser.add_argument(
 parser.add_argument(
     "--config-file", type=str, help="Path to configuration file", default=None
 )
+parser.add_argument(
+    "--gen-model-family", type=str, help="Method for text generation", default="llama"
+)
 args = parser.parse_args()
 
 
@@ -33,7 +36,9 @@ def main():
         top_k = args.top_k
 
     # Running RAG
-    rag_pipeline = RAGPipeline(source_doc_path=source_doc_path)
+    rag_pipeline = RAGPipeline(
+        source_doc_path=source_doc_path, generation_model_family=args.gen_model_family
+    )
 
     # Retieving LLM response, ranked chunks of text and relevance scores for ranked chunks
     answer, ranked_candidates, ranked_scores = rag_pipeline(query=query, top_k=top_k)
