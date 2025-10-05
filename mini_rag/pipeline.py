@@ -32,11 +32,11 @@ class RAGPipeline:
 
         # LLM for answering the question
         if generation_model_family == "llama":
-            self.gen_model = LLMWrapper(
+            self.llm = LLMWrapper(
                 model_name=self.rag_config.llama_model_name,
             )
         elif generation_model_family == "mistral":
-            self.gen_model = LLMWrapper(
+            self.llm = LLMWrapper(
                 model_name=self.rag_config.mistral_model_name,
             )
         else:
@@ -85,6 +85,6 @@ class RAGPipeline:
         # ---------------------------
         # GENERATING A REPLY FROM LLM
         # ---------------------------
-        answer = self.gen_model(query, ranked_candidates)
+        answer = self.llm.generate(user_query=query, context=ranked_candidates)
 
         return answer, ranked_candidates, ranked_scores

@@ -7,16 +7,28 @@ from ..configurations import TextGenerationConfig
 
 
 class LLMWrapper:
-    """A wrapper for loading and interacting with a Large Language Model (LLM)."""
+    """A wrapper for loading and interacting with a Large Language Model (LLM).
+
+    This class handles the initialization of the model and tokenizer, as well as the
+    construction of prompts and input tensors for generating responses. The loaded
+    model is quantized to 4-bit precision using bitsandbytes for efficiency. It also
+    includes a system prompt to guide the model's responses. The model is designed to
+    provide concise answers based on the provided context.
+
+    Args:
+        model_name (str): The name of the model to load.
+    """
 
     def __init__(self, model_name: str):
-        """Initializes the LLMWrapper with the specified model.
+        """Initializes the LLMWrapper with the specified model."""
 
-        Args:
-            model_name (str): The name of the model to load.
-        """
+        # Setting up the tokenizer for encoding and decoding text
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        # Ensuring the tokenizer has a pad token
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
+        # Configuring the model to use 4-bit quantization for efficiency
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_compute_dtype=torch.float16,
@@ -30,12 +42,18 @@ class LLMWrapper:
             quantization_config=bnb_config,
             trust_remote_code=True,
         )
+
+        # Generation parameters for controlling the output of the model
         self.gen_params = TextGenerationConfig().__dict__
+
+        # System prompt to guide the model's responses
         self.system_prompt = (
             "You are a concise assistant. "
             "Use the provided context to answer in 4-5 sentences. "
             "Do not include introductions or sections. If not in the context, say 'I don't know.'"
         )
+
+        # Maximum length for input sequences, defaulting to 4096 if not specified
         self.max_length = getattr(self.model.config, "max_position_embeddings", 4096)
 
     def _build_prompt(
@@ -51,8 +69,10 @@ class LLMWrapper:
         Returns:
             str: The formatted prompt for the LLM.
         """
+        # Joining context chunks with double newlines for clarity
         context_text = "\n\n".join(context)
 
+        # Constructing the conversation structure
         conversation = [
             {"role": "system", "content": system_prompt},
             {
@@ -61,12 +81,13 @@ class LLMWrapper:
             },
         ]
 
+        # Using the tokenizer's chat template if available
         if hasattr(self.tokenizer, "apply_chat_template"):
             return self.tokenizer.apply_chat_template(
                 conversation, tokenize=False, add_generation_prompt=True
             )
         else:
-            # fallback for base models
+            # Falling back to a simple formatted string if no chat template is available
             return f"{system_prompt}\n\nContext:\n{context_text}\n\nQuestion:\n{user_query}\nAnswer:"
 
     def _build_llm_inputs(
@@ -83,12 +104,13 @@ class LLMWrapper:
         Returns:
             dict[str, torch.Tensor]: Inputs for the LLM.
         """
+        # Building the prompt for the LLM
         prompt = self._build_prompt(
             system_prompt=self.system_prompt, context=context, user_query=user_query
         )
-        if self.tokenizer.pad_token is None:
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-        input_ids = self.tokenizer(
+
+        # Tokenizing the prompt to create input tensors
+        llm_input_dict = self.tokenizer(
             prompt,
             add_special_tokens=False,
             truncation=True,
@@ -97,9 +119,9 @@ class LLMWrapper:
             padding=True,
         )
 
-        return input_ids
+        return llm_input_dict
 
-    def __call__(self, user_query: str, context: list[str]) -> str:
+    def generate(self, user_query: str, context: list[str]) -> str:
         """Generates a response from the LLM.
 
         Args:
@@ -111,23 +133,28 @@ class LLMWrapper:
         """
         print("Generating a response from LLM...")
 
-        input_ids = self._build_llm_inputs(context, user_query)
-        model_inputs = input_ids.input_ids.to(self.model.device)
-        attention_mask = input_ids.attention_mask.to(self.model.device)
+        # Building inputs for the LLM
+        llm_input_dict = self._build_llm_inputs(context=context, user_query=user_query)
+        input_ids = llm_input_dict.input_ids.to(self.model.device)
+        attention_mask = llm_input_dict.attention_mask.to(self.model.device)
+
+        # Generating the response using the model
         outputs = self.model.generate(
-            model_inputs,
+            input_ids,
             attention_mask=attention_mask,
             return_dict_in_generate=True,
             output_scores=False,
             **self.gen_params,
         )
 
+        # Decoding the generated tokens to get the response text
         llm_response = self.tokenizer.decode(
-            outputs.sequences[0][model_inputs.shape[-1] :],
+            outputs.sequences[0][input_ids.shape[-1] :],
             skip_special_tokens=True,
             clean_up_tokenization_spaces=True,
         )
 
+        # Inserting spaces in camelCase words for better readability (in case model merges words)
         llm_response = re.sub(r"([a-z])([A-Z])", r"\1 \2", llm_response).strip()
 
         return llm_response
