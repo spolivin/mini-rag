@@ -16,7 +16,8 @@ class FaissDB:
     """Implementation of FAISS/SQLite integration for managing embedding vectors and document metadata.
 
     The class acts as a context manager which ingests a document into FAISS index with saving
-    chunks of text and other document information to a SQLite database.
+    chunks of text and other document information to a SQLite database. It also allows
+    running similarity search to retrieve the most relevant chunks of text to the passed query.
 
     Args:
         embedding_model_name (str): Name of the SentenceTransformer embedding model.
@@ -39,6 +40,8 @@ class FaissDB:
         db_filename: str = "chunks.db",
         index_filename: str = "index.faiss",
     ):
+        """Initializes the FAISS database."""
+
         # Instantiating embedding model and retrieving embedding dimension
         self.model = SentenceTransformer(embedding_model_name)
         embedding_dim = self.model.get_sentence_embedding_dimension()

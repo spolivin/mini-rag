@@ -4,6 +4,9 @@ from sentence_transformers import CrossEncoder
 class Reranker:
     """Class for ranking the results of the retrieval of chunks.
 
+    This class uses a CrossEncoder model to re-rank the retrieved chunks based on their relevance to the query.
+    It computes relevance scores for each chunk and returns the top-k most relevant ones.
+
     Args:
         model_name (str): Name of the a CrossEncoder model for re-ranking
     """
