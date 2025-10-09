@@ -68,6 +68,7 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 
 ### Stage 6 - Deployment
 
+- [x] Create a FastAPI endpoint for sending and querying documents to avoid multiple model reloading 
 - [ ] Add `Dockerfile` for reproducible deployment
 - [ ] Write documentation and examples
 - [x] Add tests for core components
