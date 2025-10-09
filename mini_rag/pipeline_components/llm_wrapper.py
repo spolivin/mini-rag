@@ -3,8 +3,6 @@ import re
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-from ..configurations import TextGenerationConfig
-
 
 class LLMWrapper:
     """A wrapper for loading and interacting with a Large Language Model (LLM).
@@ -17,9 +15,10 @@ class LLMWrapper:
 
     Args:
         model_name (str): The name of the model to load.
+        textgen_params (dict[str, int | float]): Parameters for text generation.
     """
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, textgen_params: dict[str, int | float]):
         """Initializes the LLMWrapper with the specified model."""
 
         # Setting up the tokenizer for encoding and decoding text
@@ -37,14 +36,13 @@ class LLMWrapper:
         )
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            use_safetensors=True,
             device_map="auto",
             quantization_config=bnb_config,
             trust_remote_code=True,
         )
+        self.model.eval()
 
-        # Generation parameters for controlling the output of the model
-        self.gen_params = TextGenerationConfig().__dict__
+        self.textgen_params = textgen_params
 
         # System prompt to guide the model's responses
         self.system_prompt = (
@@ -72,7 +70,7 @@ class LLMWrapper:
         # Joining context chunks with double newlines for clarity
         context_text = "\n\n".join(context)
 
-        # Constructing the conversation structure
+        # # Constructing the conversation structure
         conversation = [
             {"role": "system", "content": system_prompt},
             {
@@ -82,13 +80,14 @@ class LLMWrapper:
         ]
 
         # Using the tokenizer's chat template if available
-        if hasattr(self.tokenizer, "apply_chat_template"):
+        try:
             return self.tokenizer.apply_chat_template(
                 conversation, tokenize=False, add_generation_prompt=True
             )
-        else:
+        except ValueError:
             # Falling back to a simple formatted string if no chat template is available
             return f"{system_prompt}\n\nContext:\n{context_text}\n\nQuestion:\n{user_query}\nAnswer:"
+            # return f"Context:\n{context_text}\n\nQuestion:\n{user_query}\nAnswer:"
 
     def _build_llm_inputs(
         self,
@@ -144,7 +143,7 @@ class LLMWrapper:
             attention_mask=attention_mask,
             return_dict_in_generate=True,
             output_scores=False,
-            **self.gen_params,
+            **self.textgen_params,
         )
 
         # Decoding the generated tokens to get the response text

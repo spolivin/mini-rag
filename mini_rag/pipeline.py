@@ -1,6 +1,7 @@
+from dataclasses import asdict
 from pathlib import Path
 
-from .configurations import RAGConfig
+from .configurations import RAGConfig, TextGenerationConfig
 from .pipeline_components import FaissDB, LLMWrapper, Reranker
 
 
@@ -14,37 +15,33 @@ class RAGPipeline:
     LLM which then uses it to generate an answer to the query.
 
     Args:
-        source_doc_path (str | Path): Path to the source document.
-        generation_model_family (str): The family of the generation model to use ("llama" or "mistral").
+        rag_config (RAGConfig, optional): Configuration for the RAG pipeline.
+            Defaults to RAGConfig(), which uses default RAGConfig values.
+        textgen_config (TextGenerationConfig, optional): Configuration for text generation.
+            Defaults to TextGenerationConfig(), which uses default TextGenerationConfig values.
     """
 
-    def __init__(self, source_doc_path: str | Path, generation_model_family: str):
+    def __init__(
+        self,
+        rag_config: RAGConfig = RAGConfig(),
+        textgen_config: TextGenerationConfig = TextGenerationConfig(),
+    ):
         """Initializes the RAGPipeline with the specified document and generation model."""
 
-        # Setting path to the document
-        self.source_doc_path = source_doc_path
-
-        # Instantiating fixed RAG parameters
-        self.rag_config = RAGConfig()
+        self.config = rag_config
+        self.textgen_params = asdict(textgen_config)
 
         # Reranker model for ordering retrieved chunks by relevance to the query
-        self.cross_encoder = Reranker(model_name=self.rag_config.reranker_model_name)
+        self.cross_encoder = Reranker(model_name=self.config.reranker_model_name)
 
         # LLM for answering the question
-        if generation_model_family == "llama":
-            self.llm = LLMWrapper(
-                model_name=self.rag_config.llama_model_name,
-            )
-        elif generation_model_family == "mistral":
-            self.llm = LLMWrapper(
-                model_name=self.rag_config.mistral_model_name,
-            )
-        else:
-            raise ValueError(
-                f"Unknown generation model family: {generation_model_family}"
-            )
+        self.llm = LLMWrapper(
+            model_name=self.config.gen_model_name, textgen_params=self.textgen_params
+        )
 
-    def __call__(self, query: str, top_k: int) -> tuple[str, list[str], list[float]]:
+    def __call__(
+        self, source_doc_path: str | Path, query: str, top_k: int
+    ) -> tuple[str, list[str], list[float]]:
         """Runs the RAG pipeline for a given query.
 
         Args:
@@ -58,17 +55,17 @@ class RAGPipeline:
         # RETRIEVAL OF CHUNKS
         # ---------------------------
         with FaissDB(
-            embedding_model_name=self.rag_config.embedding_model_name,
-            chunk_size=self.rag_config.chunk_size,
-            overlap=self.rag_config.overlap,
-            max_vectors=self.rag_config.max_vectors,
+            embedding_model_name=self.config.embedding_model_name,
+            chunk_size=self.config.chunk_size,
+            overlap=self.config.overlap,
+            max_vectors=self.config.max_vectors,
             base_dir="vector_store",
             db_filename="processed_documents.db",
             index_filename="vectors.faiss",
         ) as faiss_db:
 
             # Ingesting a new document to the DB
-            faiss_db.ingest_document(source_doc_path=self.source_doc_path)
+            faiss_db.ingest_document(source_doc_path=source_doc_path)
 
             # Retrieving the most similar chunks to the query
             results = faiss_db.run_similarity_search(query=query)
