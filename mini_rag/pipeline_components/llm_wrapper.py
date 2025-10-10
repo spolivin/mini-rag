@@ -68,7 +68,7 @@ class LLMWrapper:
             str: The formatted prompt for the LLM.
         """
         # Joining context chunks with double newlines for clarity
-        context_text = "\n\n".join(context)
+        context_text = "\n\n".join(context[::-1])
 
         # # Constructing the conversation structure
         conversation = [
@@ -87,7 +87,6 @@ class LLMWrapper:
         except ValueError:
             # Falling back to a simple formatted string if no chat template is available
             return f"{system_prompt}\n\nContext:\n{context_text}\n\nQuestion:\n{user_query}\nAnswer:"
-            # return f"Context:\n{context_text}\n\nQuestion:\n{user_query}\nAnswer:"
 
     def _build_llm_inputs(
         self,
