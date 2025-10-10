@@ -12,6 +12,9 @@ class RAGConfig:
         chunk_size (int): Size of a chunk into which document text is separated. Default is 500.
         overlap (int): Word overlap across chunks. Default is 100.
         max_vectors (int): Maximum number of vectors to retrieve during similarity search. Default is 30.
+        vector_store_dir (str): Directory name for storing the vector database. Default is "vector_store".
+        sqlite_db_filename (str): Filename for the SQLite database storing processed documents. Default is "processed_documents.db".
+        faiss_index_filename (str): Filename for the FAISS index. Default is "vectors.faiss".
     """
 
     embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -20,6 +23,9 @@ class RAGConfig:
     chunk_size: int = 500
     overlap: int = 100
     max_vectors: int = 30
+    vector_store_dir: str = "vector_store"
+    sqlite_db_filename: str = "processed_documents.db"
+    faiss_index_filename: str = "vectors.faiss"
 
     def __post_init__(self):
         if self.chunk_size <= self.overlap:
