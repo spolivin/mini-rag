@@ -16,20 +16,20 @@ class RAGPipeline:
 
     Args:
         rag_config (RAGConfig, optional): Configuration for the RAG pipeline.
-            Defaults to RAGConfig(), which uses default RAGConfig values.
+            Defaults to None.
         textgen_config (TextGenerationConfig, optional): Configuration for text generation.
-            Defaults to TextGenerationConfig(), which uses default TextGenerationConfig values.
+            Defaults to None.
     """
 
     def __init__(
         self,
-        rag_config: RAGConfig = RAGConfig(),
-        textgen_config: TextGenerationConfig = TextGenerationConfig(),
+        rag_config: RAGConfig | None = None,
+        textgen_config: TextGenerationConfig | None = None,
     ):
         """Initializes the RAGPipeline with the specified document and generation model."""
 
-        self.config = rag_config
-        self.textgen_params = asdict(textgen_config)
+        self.config = rag_config or RAGConfig()
+        self.textgen_params = asdict(textgen_config or TextGenerationConfig())
 
         # Reranker model for ordering retrieved chunks by relevance to the query
         self.cross_encoder = Reranker(model_name=self.config.reranker_model_name)
@@ -59,9 +59,9 @@ class RAGPipeline:
             chunk_size=self.config.chunk_size,
             overlap=self.config.overlap,
             max_vectors=self.config.max_vectors,
-            base_dir="vector_store",
-            db_filename="processed_documents.db",
-            index_filename="vectors.faiss",
+            base_dir=self.config.vector_store_dir,
+            db_filename=self.config.sqlite_db_filename,
+            index_filename=self.config.faiss_index_filename,
         ) as faiss_db:
 
             # Ingesting a new document to the DB
