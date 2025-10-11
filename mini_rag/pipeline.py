@@ -2,7 +2,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .configurations import RAGConfig, TextGenerationConfig
-from .pipeline_components import FaissDB, LLMWrapper, Reranker
+from .pipeline_components import FaissDB, LLMWrapper, ReRanker
 
 
 class RAGPipeline:
@@ -31,8 +31,8 @@ class RAGPipeline:
         self.config = rag_config or RAGConfig()
         self.textgen_params = asdict(textgen_config or TextGenerationConfig())
 
-        # Reranker model for ordering retrieved chunks by relevance to the query
-        self.cross_encoder = Reranker(model_name=self.config.reranker_model_name)
+        # ReRanker model for ordering retrieved chunks by relevance to the query
+        self.cross_encoder = ReRanker(model_name=self.config.reranker_model_name)
 
         # LLM for answering the question
         self.llm = LLMWrapper(

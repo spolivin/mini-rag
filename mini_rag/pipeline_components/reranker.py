@@ -1,7 +1,7 @@
 from sentence_transformers import CrossEncoder
 
 
-class Reranker:
+class ReRanker:
     """Class for ranking the results of the retrieval of chunks.
 
     This class uses a CrossEncoder model to re-rank the retrieved chunks based on their relevance to the query.
