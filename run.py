@@ -34,7 +34,7 @@ def main():
         top_k = args.top_k
 
     # Running RAG
-    config = RAGConfig(gen_model_name="meta-llama/Llama-2-7b-chat-hf", top_k=top_k)
+    config = RAGConfig(gen_model_name="google/gemma-7b-it", top_k=top_k)
     rag_pipeline = RAGPipeline(rag_config=config)
 
     # Retieving LLM response, ranked chunks of text and relevance scores for ranked chunks
