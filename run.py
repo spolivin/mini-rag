@@ -2,6 +2,7 @@ import argparse
 
 import yaml
 
+from mini_rag.configurations import RAGConfig
 from mini_rag.pipeline import RAGPipeline
 
 parser = argparse.ArgumentParser(description="RAG script")
@@ -33,11 +34,13 @@ def main():
         top_k = args.top_k
 
     # Running RAG
-    rag_pipeline = RAGPipeline()
+    config = RAGConfig(gen_model_name="meta-llama/Llama-2-7b-chat-hf", top_k=top_k)
+    rag_pipeline = RAGPipeline(rag_config=config)
 
     # Retieving LLM response, ranked chunks of text and relevance scores for ranked chunks
     answer, ranked_candidates, ranked_scores = rag_pipeline(
-        source_doc_path=source_doc_path, query=query, top_k=top_k
+        source_doc_path=source_doc_path,
+        query=query,
     )
 
     print("\n" + "=" * 60)
