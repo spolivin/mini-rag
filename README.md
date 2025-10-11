@@ -33,7 +33,7 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 - [x] **Q&A pipeline**
 - [x] **CLI interface** for document querying
 - [ ] Optional **Streamlit Web UI**
-- [x] **FastAPI delployment**
+- [x] **FastAPI deployment**
 - [ ] **Docker deployment**
 
 ## 🚀 Project Roadmap
@@ -59,7 +59,7 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 
 ### Stage 4 - LLM Integration
 
-- [x] Integrate a CPU-friendly model (`distilgpt2`)
+- [x] Test on CPU-friendly models (such as `distilgpt2`)
 - [x] Generate answers in retrieved context
 - [x] Integrate LLaMA 2 7B
 - [x] Integrate Mistral 7B Instruct v0.3
