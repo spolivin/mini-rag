@@ -3,6 +3,11 @@ import re
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
+SUPPORTED_MODELS = [
+    "meta-llama/Llama-2-7b-chat-hf",
+    "mistralai/Mistral-7B-Instruct-v0.3",
+]
+
 
 class LLMWrapper:
     """A wrapper for loading and interacting with a Large Language Model (LLM).
@@ -18,9 +23,20 @@ class LLMWrapper:
         textgen_params (dict[str, int | float]): Parameters for text generation.
     """
 
+    SYSTEM_PROMPT = (
+        "You are a concise assistant. "
+        "Use the provided context to answer in 4-5 sentences. "
+        "Do not include introductions or sections. If not in the context, say 'I don't know.'"
+    )
+
     def __init__(self, model_name: str, textgen_params: dict[str, int | float]):
         """Initializes the LLMWrapper with the specified model."""
 
+        if model_name not in SUPPORTED_MODELS:
+            raise ValueError(
+                f"Model '{model_name}' is not currently supported and using it might lead to unexpected behavior. "
+                f"Supported and tested models are: {', '.join(SUPPORTED_MODELS)}"
+            )
         # Setting up the tokenizer for encoding and decoding text
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         # Ensuring the tokenizer has a pad token
@@ -43,13 +59,6 @@ class LLMWrapper:
         self.model.eval()
 
         self.textgen_params = textgen_params
-
-        # System prompt to guide the model's responses
-        self.system_prompt = (
-            "You are a concise assistant. "
-            "Use the provided context to answer in 4-5 sentences. "
-            "Do not include introductions or sections. If not in the context, say 'I don't know.'"
-        )
 
         # Maximum length for input sequences, defaulting to 4096 if not specified
         self.max_length = getattr(self.model.config, "max_position_embeddings", 4096)
@@ -79,14 +88,10 @@ class LLMWrapper:
             },
         ]
 
-        # Using the tokenizer's chat template if available
-        try:
-            return self.tokenizer.apply_chat_template(
-                conversation, tokenize=False, add_generation_prompt=True
-            )
-        except ValueError:
-            # Falling back to a simple formatted string if no chat template is available
-            return f"{system_prompt}\n\nContext:\n{context_text}\n\nQuestion:\n{user_query}\nAnswer:"
+        # Using the tokenizer's chat template
+        return self.tokenizer.apply_chat_template(
+            conversation, tokenize=False, add_generation_prompt=True
+        )
 
     def _build_llm_inputs(
         self,
@@ -104,7 +109,7 @@ class LLMWrapper:
         """
         # Building the prompt for the LLM
         prompt = self._build_prompt(
-            system_prompt=self.system_prompt, context=context, user_query=user_query
+            system_prompt=self.SYSTEM_PROMPT, context=context, user_query=user_query
         )
 
         # Tokenizing the prompt to create input tensors
