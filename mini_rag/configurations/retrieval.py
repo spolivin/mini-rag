@@ -11,6 +11,7 @@ class RAGConfig:
         gen_model_name (str): Name of the generation model. Default is "meta-llama/Llama-2-7b-chat-hf".
         chunk_size (int): Size of a chunk into which document text is separated. Default is 500.
         overlap (int): Word overlap across chunks. Default is 100.
+        top_k (int): Number of top documents to consider for generation. Default is 5.
         max_vectors (int): Maximum number of vectors to retrieve during similarity search. Default is 30.
         vector_store_dir (str): Directory name for storing the vector database. Default is "vector_store".
         sqlite_db_filename (str): Filename for the SQLite database storing processed documents. Default is "processed_documents.db".
@@ -23,6 +24,7 @@ class RAGConfig:
     chunk_size: int = 500
     overlap: int = 100
     max_vectors: int = 30
+    top_k: int = 5
     vector_store_dir: str = "vector_store"
     sqlite_db_filename: str = "processed_documents.db"
     faiss_index_filename: str = "vectors.faiss"
@@ -32,3 +34,5 @@ class RAGConfig:
             raise ValueError("chunk_size must be larger than overlap")
         if self.max_vectors <= 0:
             raise ValueError("max_vectors must be a positive integer")
+        if self.top_k <= 0:
+            raise ValueError("top_k must be a positive integer")
