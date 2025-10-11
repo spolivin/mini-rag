@@ -1,6 +1,6 @@
 # 📖 MiniRAG: Question Answering over PDFs (MVP)
 
-***MiniRAG*** is a lightweight, CPU-friendly Retrieval-Augmented Generation (RAG) system that helps you query your own documents (PDFs, text files, Markdown) using natural language. The goal is to demonstrate how an ML engineer can take raw documents (PDFs), preprocess them into chunks, embed them, and perform semantic search to answer user questions.
+***MiniRAG*** is a lightweight Retrieval-Augmented Generation (RAG) system that helps you query your own documents (PDFs, text files, Markdown) using natural language. The goal is to demonstrate how an ML engineer can take raw documents (PDFs), preprocess them into chunks, embed them, and perform semantic search to answer user questions.
 
 The project is in its initial stage so more changes are to be expected.
 
@@ -33,6 +33,7 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 - [x] **Q&A pipeline**
 - [x] **CLI interface** for document querying
 - [ ] Optional **Streamlit Web UI**
+- [x] **FastAPI delployment**
 - [ ] **Docker deployment**
 
 ## 🚀 Project Roadmap
@@ -54,12 +55,15 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 
 - [x] Take a user query, embed it, and search for top-k chunks
 - [x] Return most relevant context to user
-- [x] Format results into a prompt template
+- [x] Format results into a prompt template using `apply_chat_template`
 
-### Stage 4 - Lightweight LLM Integration
+### Stage 4 - LLM Integration
 
-- [x] Integrate a CPU-friendly model
+- [x] Integrate a CPU-friendly model (`distilgpt2`)
 - [x] Generate answers in retrieved context
+- [x] Integrate LLaMA 2 7B
+- [x] Integrate Mistral 7B Instruct v0.3
+- [x] Integrate Gemma 7B
 
 ### Stage 5 - CLI & Web Interface
 
@@ -81,7 +85,11 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 
 * **Sentence Transformers** (for embeddings)
 
+* **Hugging Face Transformers** (for generating text in RAG-context via LLMs)
+
 * **FAISS** (for similarity search)
+
+* **FastAPI** (for RAG deployment)
 
 ## Preparation of the environment
 
@@ -105,18 +113,18 @@ source setup_env.sh
 The script below runs a Q&A pipeline going through the following stages:
 
 1. Retrieve the text from the source document, separating the pages into a list of *Langchain*'s `Document` objects.
-2. Use the resulting list of `Document`-s to separate them into *Regex*-preprocessed *chunks*. 
+2. Use the resulting list of `Document`-s to separate them into *Regex*-preprocessed *chunks*.
 3. Generate embeddings for the created chunks and record document metadata and chunks in a local SQLite database.
 4. Build a FAISS index for the generated embeddings.
-5. Retrieve top-k chunk candidates for a given query.
-6. Re-rank chunk candidates obtained in the previous stage with cross-encoder.
+5. Retrieve a number of chunk candidates which are most similar for the given query.
+6. Re-rank and select top-k chunk candidates obtained in the previous stage with a cross-encoder to single out the most query-relevant chunks.
 7. Compose a prompt using the obtained context and generate an answer with LLM.
 
 ### Design details
 
-* Through trial and error, it has been observed that chunk order affects answer quality due to *recency bias*; therefore the most relevant chunks are injected closest to the query in the prompt. The script below additionally prints out the top-k retrieved chunks in order to get a sense of what kind of information is used during answer generation.
+* Through trial and error, it has been observed that chunk order affects answer quality due to *recency bias*; therefore the most relevant chunks are injected closest to the query in the prompt.
 
-* The most recent addition of the following project is the integration of FAISS index with SQLite database. More specifically, when running the pipeline, document/chunks metadata as well as the embeddings generated thereof are stored and tracked using local database and FAISS index. The following directory structure is created:
+* The most useful and important addition to the following project is the integration of FAISS index with SQLite database. More specifically, when running the pipeline, document/chunks metadata as well as the embeddings generated thereof are stored and tracked using a local database and FAISS index. The following directory structure is created:
 
 ```
 mini-rag/
@@ -124,15 +132,15 @@ mini-rag/
     ├── processed_documents.db
     └── vectors.faiss
 ```
-> Local DB named `processed_documents.db` stored information about processed documents in `documents` table as well as the retrieved chunks in `chunks` table. FAISS index `vectors.faiss` stores embeddings of all documents' chunks that have gone through the pipeline and are used during similarity search.
+> Local DB named `processed_documents.db` stores information about processed documents in `documents` table as well as the retrieved chunks in `chunks` table. FAISS index `vectors.faiss` stores embeddings of all documents' chunks that have gone through the pipeline and are used during similarity search.
 
-* Avoiding storing multiple FAISS indices is solved by having one common FAISS index. While supporting working with multiple documents (distinguished by hashes), a problem can easily occur during similarity search due to algorithm retrieving embeddings belonging to other documents. The issue is solved by using "overfetching" to retrieve multiple similar chunks and then filtering stage where only chunks belonging to a specific unique document hash are used. The result is shrunk down to *top-k* results.
+* Avoiding storing multiple FAISS indices is solved by having one common FAISS index. While supporting working with multiple documents (distinguished by hashes), a problem can easily occur during similarity search due to algorithm retrieving embeddings belonging to other documents. The issue is solved by using "overfetching" to retrieve multiple similar chunks and then filtering stage where only chunks belonging to a specific unique document hash are used.
 
-* In order to keep the RAG system as simplistic as possible and not to overcomplicate it with more functionality (such as support for different embedding dimensions and chunking configurations), the system currently employs fixed default chunking parameters as wekk as embedding, re-ranking and text generation models which can be found in this [module](./mini_rag/configurations/).
+* In order to keep the RAG system as simplistic as possible and not to overcomplicate it with more functionality (such as support for different embedding dimensions and chunking configurations), the system currently employs fixed default chunking parameters as well as embedding, re-ranking and text generation models which can be found in this [module](./mini_rag/configurations/).
 
 ### Pipeline
 
-The pipeline can be launched in one of the following ways:
+The pipeline can be launched in one of the following ways. The script below additionally prints out the top-k retrieved chunks in order to get a sense of what kind of information is used during answer generation.
 
 ```bash
 python run.py --source-doc=articles/rnn_paper.pdf --query="What is an RNN?" --top-k=10
@@ -143,7 +151,7 @@ or using the config:
 ```bash
 python run.py --config-file=config.yaml
 ```
-> Make sure to add some PDF document to `articles` folder first as well as set *HuggingFace* token via `hf auth login <HF-TOKEN>`.
+> Make sure to add some PDF document to `articles` folder first as well as set *HuggingFace* token via `hf auth login --token <HF-TOKEN>`.
 
 Running the pipeline will create the above directory structure including a SQLite database called `processed_documents.db`. We could optionally take a look at what information has been saved there in `documents` and `chunks` tables:
 
@@ -159,13 +167,11 @@ sqlite3 vector_store/processed_documents.db < sql_scripts/show_chunks.sql
 
 While this project demonstrates a minimal RAG pipeline running fully on CPU, there are several limitations to be aware of:
 
-* **Small language models** (e.g., `flan-t5-small`) often produce repetitive (unless controlled for) or shallow answers. 
 * **Context quality** depends heavily on chunking — some questions may retrieve irrelevant or incomplete passages.
 * **Limited preprocessing** — while basic regex cleaning reduces noise, more advanced normalization could improve retrieval.
 
 ## Future work
 
-* **Model improvements**: integrate larger open LLMs (e.g. LLaMA 2, Mistral) or API-based models for better fluency and accuracy.
 * **Better retrieval**: experiment with other re-ranking models to improve relevance of top results.
 * **UI integration**: add a simple Streamlit or FastAPI interface to make Q&A interactive.
 
@@ -174,3 +180,4 @@ While this project demonstrates a minimal RAG pipeline running fully on CPU, the
 * **Metadata handling**: extend the pipeline with document hashes (SQLite or JSON) to prevent duplicate ingestion.
 * **Multi-document RAG**: scale pipeline to handle multiple sources and filter by document ID.
 * **FAISS integration with SQLite**: store chunks for the processed documents in a SQLite database to be retrieved based on embeddings stored in a common single FAISS index.
+* **Model improvements**: integrate larger open LLMs (e.g. LLaMA 2, Mistral) or API-based models for better fluency and accuracy.
