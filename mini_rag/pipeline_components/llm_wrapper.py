@@ -6,6 +6,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 SUPPORTED_MODELS = [
     "meta-llama/Llama-2-7b-chat-hf",
     "mistralai/Mistral-7B-Instruct-v0.3",
+    "google/gemma-7b-it",
 ]
 
 
@@ -32,6 +33,7 @@ class LLMWrapper:
     def __init__(self, model_name: str, textgen_params: dict[str, int | float]):
         """Initializes the LLMWrapper with the specified model."""
 
+        self.model_name = model_name
         if model_name not in SUPPORTED_MODELS:
             raise ValueError(
                 f"Model '{model_name}' is not currently supported and using it might lead to unexpected behavior. "
@@ -80,13 +82,23 @@ class LLMWrapper:
         context_text = "\n\n".join(context[::-1])
 
         # # Constructing the conversation structure
-        conversation = [
-            {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": f"Context:\n{context_text}\n\nQuestion:\n{user_query}",
-            },
-        ]
+        if self.model_name == "google/gemma-7b-it":
+            # Gemma model uses a different format
+            conversation = [
+                {
+                    "role": "user",
+                    "content": f"{system_prompt}\n\nContext:\n{context_text}\n\nQuestion:\n{user_query}",
+                },
+            ]
+        else:
+            # Default format for other models (e.g., LLaMA, Mistral)
+            conversation = [
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": f"Context:\n{context_text}\n\nQuestion:\n{user_query}",
+                },
+            ]
 
         # Using the tokenizer's chat template
         return self.tokenizer.apply_chat_template(
@@ -159,5 +171,7 @@ class LLMWrapper:
 
         # Inserting spaces in camelCase words for better readability (in case model merges words)
         llm_response = re.sub(r"([a-z])([A-Z])", r"\1 \2", llm_response).strip()
+        # Replacing multiple spaces with a single space and trimming whitespace
+        llm_response = re.sub(r"\s+", " ", llm_response).strip()
 
         return llm_response
