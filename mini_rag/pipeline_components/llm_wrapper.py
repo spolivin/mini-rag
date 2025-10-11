@@ -7,6 +7,7 @@ SUPPORTED_MODELS = [
     "meta-llama/Llama-2-7b-chat-hf",
     "mistralai/Mistral-7B-Instruct-v0.3",
     "google/gemma-7b-it",
+    "Qwen/Qwen1.5-7B-Chat",
 ]
 
 
@@ -34,10 +35,7 @@ class LLMWrapper:
     )
 
     def __init__(self, model_name: str, textgen_params: dict[str, int | float]):
-        """Initializes the LLMWrapper with the specified model.
-
-        Raises a ValueError if the model is not supported.
-        """
+        """Initializes the LLMWrapper with the specified model."""
 
         if model_name not in SUPPORTED_MODELS:
             raise ValueError(
@@ -98,7 +96,7 @@ class LLMWrapper:
                 },
             ]
         else:
-            # Default format for other models (e.g., LLaMA, Mistral)
+            # Default format for other models (e.g., LLaMA, Mistral, Qwen)
             conversation = [
                 {"role": "system", "content": system_prompt},
                 {
