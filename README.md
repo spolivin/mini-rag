@@ -64,6 +64,7 @@ This is not meant to be perfect or production-ready. Instead, it’s a clear dem
 - [x] Integrate LLaMA 2 7B
 - [x] Integrate Mistral 7B Instruct v0.3
 - [x] Integrate Gemma 7B
+- [x] Integrate Qwen 7B
 
 ### Stage 5 - CLI & Web Interface
 
