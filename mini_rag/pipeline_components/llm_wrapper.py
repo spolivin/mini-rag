@@ -20,7 +20,7 @@ class LLMWrapper:
     includes a system prompt to guide the model's responses. The model is designed to
     provide concise answers based on the provided context.
 
-    Class has been tested on the following models: LLaMA 2 7B, Mistral 7B Instruct v0.3, Gemma 7B.
+    Class has been tested on the following models: LLaMA 2 7B, Mistral 7B Instruct v0.3, Gemma 7B, Qwen 1.5 7B.
     Other models might work but have not been tested.
 
     Args:
