@@ -25,9 +25,8 @@ class FaissDB:
         overlap (int): Number of overlapping words to consider during text chunking.
         max_vectors (int): Number of vectors to retrieve from FAISS index.
         base_dir (str, optional): Directory where to save FAISS index and SQLite database.
-            Defaults to "vector_store".
-        db_filename (str, optional): Name of a SQLite database. Defaults to "chunks.db".
-        index_filename (str, optional): Name of a FAISS index. Defaults to "index.faiss".
+        db_filename (str, optional): Name of a SQLite database.
+        index_filename (str, optional): Name of a FAISS index.
     """
 
     def __init__(
@@ -36,9 +35,9 @@ class FaissDB:
         chunk_size: int,
         overlap: int,
         max_vectors: int,
-        base_dir: str = "vector_store",
-        db_filename: str = "chunks.db",
-        index_filename: str = "index.faiss",
+        base_dir: str,
+        db_filename: str,
+        index_filename: str,
     ):
         """Initializes the FAISS database."""
 
@@ -154,7 +153,7 @@ class FaissDB:
     # ---------------------------
     # SIMILARITY SEARCH
     # ---------------------------
-    def run_similarity_search(self, query) -> list[str]:
+    def run_similarity_search(self, query: str) -> list[str]:
         """Retrieves the most similar chunks to the passed query.
 
         Method generates an embedding of a query to be then compared to
