@@ -40,13 +40,17 @@ class RAGPipeline:
         )
 
     def __call__(
-        self, source_doc_path: str | Path, query: str, top_k: int
+        self,
+        source_doc_path: str | Path,
+        query: str,
+        top_k: int | None = None,
     ) -> tuple[str, list[str], list[float]]:
         """Runs the RAG pipeline for a given query.
 
         Args:
+            source_doc_path (str | Path): Path to the source document (PDF, TXT, or MD).
             query (str): The search query.
-            top_k (int): Number of top relevant chunks to retrieve.
+            top_k (int, optional): Number of top relevant chunks to retrieve. Defaults to None.
 
         Returns:
             tuple[str, list[str], list[float]]: The generated answer from the LLM, the ranked candidates, and their scores.
@@ -76,7 +80,7 @@ class RAGPipeline:
         ranked_candidates, ranked_scores = self.cross_encoder(
             query=query,
             candidates=results,
-            top_k=top_k,
+            top_k=top_k or self.config.top_k,
         )
 
         # ---------------------------
