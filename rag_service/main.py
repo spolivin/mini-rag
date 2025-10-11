@@ -3,6 +3,7 @@ import shutil
 import tempfile
 from contextlib import asynccontextmanager
 
+import torch
 from fastapi import FastAPI, File, Request, UploadFile
 
 from mini_rag.pipeline import RAGPipeline
@@ -50,3 +51,7 @@ async def send_inquiry(
         # Cleaning up the temp file after use
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+        # Freeing up GPU memory if used
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
