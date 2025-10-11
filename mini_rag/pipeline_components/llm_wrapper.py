@@ -19,6 +19,9 @@ class LLMWrapper:
     includes a system prompt to guide the model's responses. The model is designed to
     provide concise answers based on the provided context.
 
+    Class has been tested on the following models: LLaMA 2 7B, Mistral 7B Instruct v0.3, Gemma 7B.
+    Other models might work but have not been tested.
+
     Args:
         model_name (str): The name of the model to load.
         textgen_params (dict[str, int | float]): Parameters for text generation.
@@ -31,14 +34,18 @@ class LLMWrapper:
     )
 
     def __init__(self, model_name: str, textgen_params: dict[str, int | float]):
-        """Initializes the LLMWrapper with the specified model."""
+        """Initializes the LLMWrapper with the specified model.
 
-        self.model_name = model_name
+        Raises a ValueError if the model is not supported.
+        """
+
         if model_name not in SUPPORTED_MODELS:
             raise ValueError(
                 f"Model '{model_name}' is not currently supported and using it might lead to unexpected behavior. "
                 f"Supported and tested models are: {', '.join(SUPPORTED_MODELS)}"
             )
+        else:
+            self.model_name = model_name
         # Setting up the tokenizer for encoding and decoding text
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         # Ensuring the tokenizer has a pad token
