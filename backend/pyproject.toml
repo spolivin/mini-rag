@@ -1,0 +1,41 @@
+[project]
+name = "mini-rag-backend"
+version = "0.1.0"
+requires-python = "==3.12.*"
+dependencies = [
+    "langchain-community",
+    "langchain-core",
+    "langchain-text-splitters",
+    "pypdf",
+    "sentence-transformers",
+    "torch",
+    "numpy",
+    "psycopg[binary]",
+    "pgvector",
+    "anthropic",
+    "fastapi[standard]",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[tool.uv]
+package = false
+
+[tool.fastapi]
+entrypoint = "app.main:app"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+# Install the CPU-only build of torch (much smaller than the default CUDA build).
+# torch is only needed by sentence-transformers for embeddings and reranking.
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
