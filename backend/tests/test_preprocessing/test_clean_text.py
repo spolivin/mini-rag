@@ -1,6 +1,6 @@
 import pytest
 
-from mini_rag.preprocessing import clean_text
+from rag.preprocessing import clean_text
 
 
 @pytest.mark.parametrize(

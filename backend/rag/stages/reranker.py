@@ -1,6 +1,10 @@
 from sentence_transformers import CrossEncoder
 
 
+class NoRelevantResultsError(RuntimeError):
+    """Raised when no retrieved chunk is relevant to the query."""
+
+
 class ReRanker:
     """Class for ranking the results of the retrieval of chunks.
 
@@ -30,11 +34,14 @@ class ReRanker:
             top_k (int): Number of top chunks to return.
 
         Raises:
-            RuntimeError: Error raised in case no query-relevant results (chunks) have been found.
+            NoRelevantResultsError: Error raised in case no query-relevant results (chunks) have been found.
 
         Returns:
             tuple[list[str], list[float]]: Collection of top-k ranked chunks and relevance scores.
         """
+        if not candidates:
+            raise NoRelevantResultsError("No candidate chunks to rank. RAG aborted.")
+
         # Computing relevance scores
         pairs = [[query, candidate] for candidate in candidates]
         scores = self.cross_encoder.predict(pairs)
@@ -50,7 +57,7 @@ class ReRanker:
 
         # Stopping RAG in case no query-relevant results have been extracted
         if ranking_results == []:
-            raise RuntimeError(
+            raise NoRelevantResultsError(
                 "No relevant results have been retrieved for the provided query. RAG aborted."
             )
 
