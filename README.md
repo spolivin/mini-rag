@@ -1,184 +1,118 @@
-# 📖 MiniRAG: Question Answering over PDFs (MVP)
+# MiniRAG
 
-***MiniRAG*** is a lightweight Retrieval-Augmented Generation (RAG) system that helps you query your own documents (PDFs, text files, Markdown) using natural language. The goal is to demonstrate how an ML engineer can take raw documents (PDFs), preprocess them into chunks, embed them, and perform semantic search to answer user questions.
+MiniRAG is a small Retrieval-Augmented Generation (RAG) application for chatting with your own documents. Upload PDF, TXT or Markdown files, ask questions in natural language, and get a short answer together with the passages it was based on.
 
-The project is in its initial stage so more changes are to be expected.
+It runs locally with Docker Compose: nothing is deployed anywhere, so you can clone the repository and try it on your own machine.
 
-⚡ **Why this project matters**
+## Purpose
 
-* Many people rely on PDFs (papers, manuals, contracts) and struggle with simple keyword search.
+The project is a compact, end-to-end example of a RAG system, built to make each design choice visible rather than to be production-ready:
 
-* This project shows how to turn those documents into a queryable knowledge base using modern NLP techniques.
+**document → chunks → embeddings → pgvector → re-ranker → LLM → answer**
 
-* It is built as an MVP (minimum viable product) — simple, reproducible, and extendable.
+1. An uploaded document is split into overlapping chunks (500 characters, 100 overlap by default) and cleaned of citation noise.
+2. Each chunk is embedded with `sentence-transformers/all-MiniLM-L6-v2` and stored in PostgreSQL with the pgvector extension. Identical files are detected by hash and not ingested twice.
+3. A question is embedded and the 30 closest chunks are fetched (cosine distance, HNSW index), optionally restricted to the documents you select.
+4. A cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2`) re-ranks them and keeps the 5 best. Chunks it scores as irrelevant are dropped; if none remain, no LLM call is made.
+5. Claude (`claude-haiku-5-5`) answers from those chunks only. The most relevant chunk is placed closest to the question in the prompt.
 
-💡 **Why it’s on GitHub**
+The embedding and re-ranking models run on CPU inside the API container, so no GPU is needed.
 
-* To demonstrate end-to-end system thinking: ingestion → chunking → embeddings → vector search → Q&A.
+| Part | Technology |
+|---|---|
+| Backend | Python 3.12, FastAPI, psycopg, sentence-transformers |
+| Storage | PostgreSQL 16 with pgvector |
+| LLM | Anthropic API (Claude Haiku) |
+| Frontend | React, TypeScript, Vite, served by nginx |
 
-* To showcase practical trade-offs (fixed chunk size, file hashing for deduplication, FAISS for storage).
+The UI has two panels: your documents on the left (upload, delete, tick the ones to search) and the chat on the right. Each answer has a collapsible list of its source chunks with relevance scores.
 
-* To provide a foundation that can later evolve (UI, multi-document search, different chunking strategies).
+## Quick start
 
-This is not meant to be perfect or production-ready. Instead, it’s a clear demonstration of ML engineering skills: building a working system from scratch, making design choices explicit, and leaving room for iteration.
-
-## ✨ Features (Planned & Completed)
-
-- [x] **Document ingestion** (PDF, TXT, MD)
-- [x] **Text chunking** (with configurable chunk size and overlap)
-- [x] **Embedding generation** with CPU-friendly models (`sentence-transformers`)
-- [x] **Vector search** using *FAISS*
-- [x] **Basic retrieval pipeline** (query → embeddings → top-k chunk search)
-- [x] **Lightweight LLM integration** (local small models)
-- [x] **Q&A pipeline**
-- [x] **CLI interface** for document querying
-- [ ] Optional **Streamlit Web UI**
-- [x] **FastAPI deployment**
-- [ ] **Docker deployment**
-
-## 🚀 Project Roadmap
-
-### Stage 1 - Ingestion & Chunking
-
-- [x] Implement document loader (PDF → text)
-- [x] Implement chunking strategy (with LangChain splitters)
-
-### Stage 2 - Embeddings & Storage
-
-- [x] Use `sentence-transformers/all-MiniLM-L6-v2` for chunk embeddings
-- [x] Store embeddings in FAISS index
-- [x] Implement similarity search
-- [x] Implement hashing to keep track of documents with embeddings already computed (taking into account chunk size and overlap)
-- [x] Integrate FAISS index for embeddings with chunks tracking in SQLite DB
-
-### Stage 3 - Retrieval pipeline
-
-- [x] Take a user query, embed it, and search for top-k chunks
-- [x] Return most relevant context to user
-- [x] Format results into a prompt template using `apply_chat_template`
-
-### Stage 4 - LLM Integration
-
-- [x] Test on CPU-friendly models (such as `distilgpt2`)
-- [x] Generate answers in retrieved context
-- [x] Integrate LLaMA 2 7B
-- [x] Integrate Mistral 7B Instruct v0.3
-- [x] Integrate Gemma 7B
-- [x] Integrate Qwen 7B
-
-### Stage 5 - CLI & Web Interface
-
-- [x] Add a CLI to query documents
-- [ ] Add a simple Streamlit UI for interactive search
-
-### Stage 6 - Deployment
-
-- [x] Create a FastAPI endpoint for sending and querying documents to avoid multiple model reloading 
-- [ ] Add `Dockerfile` for reproducible deployment
-- [ ] Write documentation and examples
-- [x] Add tests for core components
-
-## 🔧 Tech Stack
-
-* **Python** (3.10+)
-
-* **LangChain** (for document loaders & text splitters)
-
-* **Sentence Transformers** (for embeddings)
-
-* **Hugging Face Transformers** (for generating text in RAG-context via LLMs)
-
-* **FAISS** (for similarity search)
-
-* **FastAPI** (for RAG deployment)
-
-## Preparation of the environment
-
-We firstly clone the project:
+You need [Docker](https://docs.docker.com/get-docker/) with Compose and an [Anthropic API key](https://console.anthropic.com/) (used only to generate answers).
 
 ```bash
 git clone https://github.com/spolivin/mini-rag.git
-
 cd mini-rag
+
+cp .env.example .env
+# edit .env and set ANTHROPIC_API_KEY
+
+docker compose up -d --build
 ```
 
-Afterwards, we set up the virtual environment:
+Then open <http://localhost:8080>.
+
+- The first build downloads PyTorch and the dependencies (the API image is about 2.4 GB).
+- The first start also downloads the two models (about 130 MB) into a Docker volume and takes about a minute. Later starts reuse them. The `web` service waits until the API reports healthy.
+- Without `ANTHROPIC_API_KEY`, uploading, listing and searching still work, but asking a question returns an error.
+- `HF_TOKEN` in `.env` is optional. The models are public; the token only makes the Hugging Face downloads authenticated.
 
 ```bash
-source setup_env.sh
+docker compose stop         # stop, keeping your documents
+docker compose down         # remove containers, keeping your documents
+docker compose down -v      # also delete the database and the model cache
 ```
-> This command uses Conda so make sure you have it installed on your system.
 
-## Current progress
+Ports are bound to `127.0.0.1` (web 8080, API 8000, Postgres 5432) and can be changed in `.env`. The API's interactive docs are at <http://localhost:8000/docs>.
 
-The script below runs a Q&A pipeline going through the following stages:
+## Using it
 
-1. Retrieve the text from the source document, separating the pages into a list of *Langchain*'s `Document` objects.
-2. Use the resulting list of `Document`-s to separate them into *Regex*-preprocessed *chunks*.
-3. Generate embeddings for the created chunks and record document metadata and chunks in a local SQLite database.
-4. Build a FAISS index for the generated embeddings.
-5. Retrieve a number of chunk candidates which are most similar for the given query.
-6. Re-rank and select top-k chunk candidates obtained in the previous stage with a cross-encoder to single out the most query-relevant chunks.
-7. Compose a prompt using the obtained context and generate an answer with LLM.
+1. Upload a `.pdf`, `.txt` or `.md` file. The request returns once the document is fully indexed.
+2. Optionally tick the documents to search. With none ticked, all documents are searched.
+3. Ask a question. Enter sends, Shift+Enter adds a new line.
 
-### Design details
+Sample questions for a paper such as "Attention Is All You Need": *How many layers do the encoder and decoder have?*, *Why are the dot products scaled by √d_k?*
 
-* Through trial and error, it has been observed that chunk order affects answer quality due to *recency bias*; therefore the most relevant chunks are injected closest to the query in the prompt.
+## Development setup
 
-* The most useful and important addition to the following project is the integration of FAISS index with SQLite database. More specifically, when running the pipeline, document/chunks metadata as well as the embeddings generated thereof are stored and tracked using a local database and FAISS index. The following directory structure is created:
-
-```
-mini-rag/
-├── vector_store/
-    ├── processed_documents.db
-    └── vectors.faiss
-```
-> Local DB named `processed_documents.db` stores information about processed documents in `documents` table as well as the retrieved chunks in `chunks` table. FAISS index `vectors.faiss` stores embeddings of all documents' chunks that have gone through the pipeline and are used during similarity search.
-
-* Avoiding storing multiple FAISS indices is solved by having one common FAISS index. While supporting working with multiple documents (distinguished by hashes), a problem can easily occur during similarity search due to algorithm retrieving embeddings belonging to other documents. The issue is solved by using "overfetching" to retrieve multiple similar chunks and then filtering stage where only chunks belonging to a specific unique document hash are used.
-
-* In order to keep the RAG system as simplistic as possible and not to overcomplicate it with more functionality (such as support for different embedding dimensions and chunking configurations), the system currently employs fixed default chunking parameters as well as embedding, re-ranking and text generation models which can be found in this [module](./mini_rag/configurations/).
-
-### Pipeline
-
-The pipeline can be launched in one of the following ways. The script below additionally prints out the top-k retrieved chunks in order to get a sense of what kind of information is used during answer generation.
+For working on the code, run only the database in Docker and the rest on the host. This needs [uv](https://docs.astral.sh/uv/), Python 3.12 and Node.js.
 
 ```bash
-python run.py --source-doc=articles/rnn_paper.pdf --query="What is an RNN?" --top-k=10
+cp .env.example .env
+docker compose up -d db
+
+# Backend (http://127.0.0.1:8000)
+cd backend
+uv sync --extra dev
+export ANTHROPIC_API_KEY=...
+uv run fastapi dev
+
+# Frontend, in a second terminal (http://127.0.0.1:5173, /api is proxied to the backend)
+cd frontend
+npm install
+npm run dev -- --host 127.0.0.1
 ```
 
-or using the config:
+Tests run from `backend/` with `uv run pytest`. They use fake models, so nothing is downloaded and the Anthropic API is not called. The tests that touch documents need the database (`docker compose up -d db`) and skip themselves when it is unreachable.
 
-```bash
-python run.py --config-file=config.yaml
+### Layout
+
 ```
-> Make sure to add some PDF document to `articles` folder first as well as set *HuggingFace* token via `hf auth login --token <HF-TOKEN>`.
-
-Running the pipeline will create the above directory structure including a SQLite database called `processed_documents.db`. We could optionally take a look at what information has been saved there in `documents` and `chunks` tables:
-
-```bash
-# Listing all documents that have gone through the pipeline
-sqlite3 vector_store/processed_documents.db < sql_scripts/show_documents.sql
-
-# Showing the first five rows with chunks for each document
-sqlite3 vector_store/processed_documents.db < sql_scripts/show_chunks.sql
+backend/
+  app/    FastAPI service: routers, schemas, dependencies
+  rag/    the RAG library (config, pipeline, stages), with no HTTP code
+  tests/
+frontend/ React app and the nginx config
+db/       Postgres schema (init.sql)
+docker-compose.yml
 ```
 
-## Current limitations
+API endpoints: `GET /health`, `POST /documents`, `GET /documents`, `DELETE /documents/{doc_id}`, `POST /query`.
 
-While this project demonstrates a minimal RAG pipeline running fully on CPU, there are several limitations to be aware of:
+## Limitations
 
-* **Context quality** depends heavily on chunking — some questions may retrieve irrelevant or incomplete passages.
-* **Limited preprocessing** — while basic regex cleaning reduces noise, more advanced normalization could improve retrieval.
+- **No authentication.** Anyone who can reach the app can upload, delete and query documents, and every question uses your Anthropic key. Keep it on localhost. Do not expose it to the internet without adding authentication, HTTPS, rate limiting and a spend limit on the key.
+- **Your text is sent to Anthropic.** The retrieved chunks and your question go to the Claude API to produce the answer. Do not upload documents you are not allowed to share with it.
+- **One question at a time.** The chat has no memory: each question is answered on its own, so follow-ups like "and the second one?" will not work. History is kept in the browser only and lost on reload.
+- **Short answers.** The system prompt asks for 4-5 sentences with no introductions.
+- **PDF extraction is plain text.** There is no OCR, so scanned PDFs yield nothing. Tables, equations and multi-column layouts can come out garbled, which hurts retrieval and answers.
+- **No page numbers** in the sources, only the file name and score.
+- **Fixed retrieval settings.** Chunk size, overlap, number of chunks and the models are defaults in `backend/rag/config/`, not controls in the UI. The embedder is English-oriented, and changing it to a different dimension requires changing `db/init.sql`.
+- **Strict relevance cutoff.** Chunks the re-ranker scores at or below zero are discarded, so an unusual phrasing can produce "No relevant passages were found" even when the answer is in the document. Rephrasing the question usually helps.
+- **Document identity is its file name.** Two different files with the same name and chunk settings conflict (HTTP 409). Uploads are capped at 50 MB by nginx only.
+- **Local resources.** Expect roughly 0.6 GB of RAM for the API at idle, more while ingesting large documents, and noticeable CPU use during ingestion and re-ranking.
 
-## Future work
+## License
 
-* **Better retrieval**: experiment with other re-ranking models to improve relevance of top results.
-* **UI integration**: add a simple Streamlit or FastAPI interface to make Q&A interactive.
-
-## Completed goals
-
-* **Metadata handling**: extend the pipeline with document hashes (SQLite or JSON) to prevent duplicate ingestion.
-* **Multi-document RAG**: scale pipeline to handle multiple sources and filter by document ID.
-* **FAISS integration with SQLite**: store chunks for the processed documents in a SQLite database to be retrieved based on embeddings stored in a common single FAISS index.
-* **Model improvements**: integrate larger open LLMs (e.g. LLaMA 2, Mistral) or API-based models for better fluency and accuracy.
+[MIT](./LICENSE)
