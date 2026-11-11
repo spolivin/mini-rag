@@ -21,6 +21,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-rag}:${POSTGRES_PASSWORD:-rag}@db:5432/${POSTGRES_DB:-rag}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}  # from .env; without it /query answers with a 502
+      HF_TOKEN: ${HF_TOKEN:-}  # optional: authenticated Hugging Face downloads (higher rate limits)
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     volumes:
