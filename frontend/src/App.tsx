@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { errorMessage, listDocuments, type StoredDocument } from './api'
-import Ask from './components/Ask'
+import Chat from './components/Chat'
 import Documents from './components/Documents'
 
 type Status = 'checking' | 'ok' | 'down'
@@ -57,25 +57,39 @@ function App() {
     }
   }, [])
 
+  // Documents the chat is restricted to (empty = all). Ids of deleted documents are ignored.
+  const [selected, setSelected] = useState<string[]>([])
+  const selectedIds = selected.filter((id) => documents?.some((doc) => doc.doc_id === id))
+
+  function toggleSelected(docId: string) {
+    setSelected((current) =>
+      current.includes(docId) ? current.filter((id) => id !== docId) : [...current, docId],
+    )
+  }
+
   return (
-    <main>
+    <div className="app">
       <header className="app-header">
         <div>
           <h1>MiniRAG</h1>
-          <p className="tagline">Ask questions about your documents</p>
+          <p className="tagline">Chat with your documents</p>
         </div>
         <p className={`status ${status}`}>
           <span className="dot" aria-hidden="true" />
           Backend {STATUS_TEXT[status]}
         </p>
       </header>
-      <Ask documents={documents ?? []} />
-      <Documents
-        documents={documents}
-        loadError={loadError}
-        onChange={refreshDocuments}
-      />
-    </main>
+      <div className="layout">
+        <Documents
+          documents={documents}
+          loadError={loadError}
+          selectedIds={selectedIds}
+          onToggle={toggleSelected}
+          onChange={refreshDocuments}
+        />
+        <Chat documents={documents ?? []} selectedIds={selectedIds} />
+      </div>
+    </div>
   )
 }
 

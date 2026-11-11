@@ -4,11 +4,20 @@ import { deleteDocument, errorMessage, uploadDocument, type StoredDocument } fro
 interface Props {
   documents: StoredDocument[] | null
   loadError: string | null
+  /** IDs of the documents the chat is restricted to. */
+  selectedIds: string[]
+  onToggle: (docId: string) => void
   /** Called after an upload or delete so the parent reloads the list. */
   onChange: () => Promise<void>
 }
 
-export default function Documents({ documents, loadError, onChange }: Props) {
+export default function Documents({
+  documents,
+  loadError,
+  selectedIds,
+  onToggle,
+  onChange,
+}: Props) {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -53,59 +62,66 @@ export default function Documents({ documents, loadError, onChange }: Props) {
   }
 
   return (
-    <section>
-      <h2>Documents</h2>
+    <aside className="panel documents">
+      <header className="panel-header">
+        <h2>Documents</h2>
+      </header>
 
-      <input
-        type="file"
-        accept=".pdf,.txt,.md"
-        onChange={handleUpload}
-        disabled={uploading}
-      />
-      {uploading && (
-        <p className="muted">Uploading and indexing… this can take a few seconds.</p>
-      )}
-      {notice && <p className="notice">{notice}</p>}
-      {shownError && (
-        <p className="error" role="alert">
-          {shownError}
-        </p>
-      )}
+      <div className="upload">
+        <input
+          type="file"
+          accept=".pdf,.txt,.md"
+          onChange={handleUpload}
+          disabled={uploading}
+          aria-label="Upload a document"
+        />
+        {uploading && <p className="muted small">Uploading and indexing…</p>}
+        {notice && <p className="notice">{notice}</p>}
+        {shownError && (
+          <p className="error" role="alert">
+            {shownError}
+          </p>
+        )}
+      </div>
 
       {documents === null ? (
-        !shownError && <p className="muted">Loading…</p>
+        !shownError && <p className="muted empty">Loading…</p>
       ) : documents.length === 0 ? (
-        <p className="muted">No documents yet. Upload a PDF, TXT or Markdown file.</p>
+        <p className="muted empty">No documents yet. Upload a PDF, TXT or Markdown file.</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>File</th>
-              <th className="num">Chunks</th>
-              <th>Added</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
+        <>
+          <p className="muted small hint">
+            Tick documents to chat with only those (none ticked = all).
+          </p>
+          <ul className="doc-list">
             {documents.map((doc) => (
-              <tr key={doc.doc_id}>
-                <td>{doc.filename}</td>
-                <td className="num">{doc.num_chunks}</td>
-                <td>{new Date(doc.created_at).toLocaleString()}</td>
-                <td>
-                  <button
-                    type="button"
-                    className="danger"
-                    onClick={() => handleDelete(doc)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
+              <li key={doc.doc_id} className={selectedIds.includes(doc.doc_id) ? 'selected' : ''}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(doc.doc_id)}
+                    onChange={() => onToggle(doc.doc_id)}
+                  />
+                  <span className="doc-info">
+                    <span className="doc-name">{doc.filename}</span>
+                    <span className="muted small">
+                      {doc.num_chunks} chunks · {new Date(doc.created_at).toLocaleDateString()}
+                    </span>
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => handleDelete(doc)}
+                  aria-label={`Delete ${doc.filename}`}
+                >
+                  Delete
+                </button>
+              </li>
             ))}
-          </tbody>
-        </table>
+          </ul>
+        </>
       )}
-    </section>
+    </aside>
   )
 }

@@ -52,10 +52,14 @@ body {
   background: var(--bg);
 }
 
-main {
-  max-width: 880px;
+/* Two panels filling the viewport: documents on the left, chat on the right */
+.app {
+  display: flex;
+  flex-direction: column;
+  max-width: 1200px;
+  height: 100dvh;
   margin: 0 auto;
-  padding: 2rem 1rem 4rem;
+  padding: 1rem;
 }
 
 .app-header {
@@ -64,7 +68,30 @@ main {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 760px) {
+  .app {
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .chat {
+    height: 75dvh;
+  }
 }
 
 h1 {
@@ -120,18 +147,36 @@ h1 {
 }
 
 /* ---------- Cards ---------- */
-main > section {
-  margin-top: 1.25rem;
-  padding: 1.25rem 1.5rem 1.5rem;
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow);
 }
 
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+}
+
 h2 {
-  margin: 0 0 1rem;
-  font-size: 1.1rem;
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.small {
+  font-size: 0.82rem;
+}
+
+.empty {
+  margin: 1rem 1.1rem;
 }
 
 h3 {
@@ -190,54 +235,11 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
-/* Document picker: checkboxes shown as chips */
-fieldset {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0.75rem 1rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-legend {
-  padding: 0 0.4rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-fieldset label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.75rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-}
-
-fieldset label:hover {
-  border-color: var(--accent);
-}
-
-fieldset label:has(input:checked) {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
-
-fieldset input {
-  margin: 0;
-  accent-color: var(--accent);
-}
-
 /* File picker */
 input[type='file'] {
   width: 100%;
-  padding: 0.9rem 1rem;
+  padding: 0.7rem 0.8rem;
+  font-size: 0.85rem;
   font: inherit;
   color: var(--muted);
   cursor: pointer;
@@ -313,6 +315,8 @@ button.danger:hover:not(:disabled) {
 }
 
 .spinner {
+  display: inline-block;
+  vertical-align: -0.15em;
   width: 0.9rem;
   height: 0.9rem;
   border: 2px solid currentColor;
@@ -333,65 +337,166 @@ button.danger:hover:not(:disabled) {
   }
 }
 
-/* ---------- Documents table ---------- */
-table {
-  width: 100%;
-  margin-top: 1rem;
-  font-size: 0.93rem;
-  border-collapse: collapse;
+/* ---------- Documents panel ---------- */
+.upload {
+  padding: 0.9rem 1.1rem 0;
 }
 
-th {
-  padding: 0.5rem 0.6rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-align: left;
-  text-transform: uppercase;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
+.upload p {
+  margin: 0.6rem 0 0;
 }
 
-td {
-  padding: 0.65rem 0.6rem;
-  border-bottom: 1px solid var(--border);
+.hint {
+  margin: 0.9rem 1.1rem 0.4rem;
 }
 
-td:first-child {
+.doc-list {
+  flex: 1;
+  margin: 0;
+  padding: 0 0.6rem 0.6rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.doc-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+
+.doc-list li:hover {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.doc-list li.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.doc-list label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.doc-list input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.doc-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.doc-name {
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 
-td:last-child {
+/* ---------- Chat panel ---------- */
+.chat .panel-header {
+  min-width: 0;
+}
+
+.scope {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.82rem;
+  color: var(--muted);
   text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-tbody tr:last-child td {
-  border-bottom: 0;
+button.link {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  background: none;
+  border: 0;
 }
 
-tbody tr:hover {
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
+.thread {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-height: 0;
+  padding: 1rem 1.1rem;
+  overflow-y: auto;
 }
 
-.num {
-  font-variant-numeric: tabular-nums;
-  text-align: right;
+.message {
+  max-width: 85%;
+  padding: 0.65rem 0.95rem;
+  line-height: 1.6;
+  border-radius: 14px;
 }
 
-/* ---------- Answer and sources ---------- */
-.answer {
+.message p {
   margin: 0;
-  padding: 1rem 1.15rem;
-  font-size: 1.02rem;
-  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message.user {
+  align-self: flex-end;
+  color: var(--on-accent);
+  background: var(--accent);
+  border-bottom-right-radius: 4px;
+}
+
+.message.assistant {
+  align-self: flex-start;
   background: var(--accent-soft);
-  border-left: 4px solid var(--accent);
-  border-radius: 0 10px 10px 0;
+  border-bottom-left-radius: 4px;
+}
+
+.message.error {
+  align-self: flex-start;
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.sources {
+  margin-top: 0.6rem;
+  font-size: 0.88rem;
+}
+
+.sources summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.composer {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 0.6rem;
+  padding: 0.8rem 1.1rem;
+  border-top: 1px solid var(--border);
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+}
+
+.composer button[type='submit'] {
+  align-self: stretch;
 }
 
 .chunk {
   margin-top: 0.75rem;
+  background: var(--surface);
   padding: 0.85rem 1rem;
   border: 1px solid var(--border);
   border-radius: 10px;
