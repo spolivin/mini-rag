@@ -23,7 +23,7 @@ class LLMWrapper:
     SYSTEM_PROMPT = (
         "You are a concise assistant. "
         "Use the provided context to answer in 4-5 sentences. "
-        "Do not include introductions or sections. If not in the context, say 'I don't know.'"
+        "Do not include introductions or sections. If the answer is not in the context, reply only: 'The provided documents do not contain this information.'"
     )
 
     def __init__(
