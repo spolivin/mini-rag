@@ -4,10 +4,10 @@ from pathlib import Path
 
 import numpy as np
 import psycopg
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pgvector.psycopg import register_vector
+from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 
 from ..preprocessing import clean_text
@@ -262,15 +262,25 @@ class PgVectorStore:
         Returns:
             list[Document]: Collection of Langchain Document objects.
         """
-        ext = Path(source_doc_path).suffix.lower()
+        path = Path(source_doc_path)
+        ext = path.suffix.lower()
         if ext == ".pdf":
-            loader = PyPDFLoader(source_doc_path)
-        elif ext in {".txt", ".md"}:
-            loader = TextLoader(source_doc_path)
-        else:
-            raise ValueError(f"Unsupported file type: {ext}")
-
-        return loader.load()
+            # One document per page; "page" is the zero-based page index
+            return [
+                Document(
+                    page_content=page.extract_text() or "",
+                    metadata={"source": source_doc_path, "page": index},
+                )
+                for index, page in enumerate(PdfReader(source_doc_path).pages)
+            ]
+        if ext in {".txt", ".md"}:
+            return [
+                Document(
+                    page_content=path.read_text(encoding="utf-8"),
+                    metadata={"source": source_doc_path},
+                )
+            ]
+        raise ValueError(f"Unsupported file type: {ext}")
 
     def _chunk_documents(self, docs: list[Document]) -> list[str]:
         """Chunks a document.
