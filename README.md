@@ -27,6 +27,8 @@ The embedding and re-ranking models run on CPU inside the API container, so no G
 
 The UI has two panels: your documents on the left (upload, delete, tick the ones to search) and the chat on the right. Each answer has a collapsible list of its source chunks with relevance scores.
 
+![MiniRAG UI: document list on the left, chat with an answer and its sources on the right](ui/mini_rag_ui.png)
+
 ## Quick start
 
 You need [Docker](https://docs.docker.com/get-docker/) with Compose and an [Anthropic API key](https://console.anthropic.com/) (used only to generate answers).
