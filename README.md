@@ -18,12 +18,12 @@ The project is a compact, end-to-end example of a RAG system, built to make each
 
 The embedding and re-ranking models run on CPU inside the API container, so no GPU is needed.
 
-| Part | Technology |
-|---|---|
-| Backend | Python 3.12, FastAPI, psycopg, sentence-transformers |
-| Storage | PostgreSQL 16 with pgvector |
-| LLM | Anthropic API (Claude Haiku) |
-| Frontend | React, TypeScript, Vite, served by nginx |
+| Part     | Technology                                           |
+| -------- | ---------------------------------------------------- |
+| Backend  | Python 3.12, FastAPI, psycopg, sentence-transformers |
+| Storage  | PostgreSQL 16 with pgvector                          |
+| LLM      | Anthropic API (Claude Haiku)                         |
+| Frontend | React, TypeScript, Vite, served by nginx             |
 
 The UI has two panels: your documents on the left (upload, delete, tick the ones to search) and the chat on the right. Each answer has a collapsible list of its source chunks with relevance scores.
 
@@ -64,7 +64,7 @@ Ports are bound to `127.0.0.1` (web 8080, API 8000, Postgres 5432) and can be ch
 2. Optionally tick the documents to search. With none ticked, all documents are searched.
 3. Ask a question. Enter sends, Shift+Enter adds a new line.
 
-Sample questions for a paper such as "Attention Is All You Need": *How many layers do the encoder and decoder have?*, *Why are the dot products scaled by √d_k?*
+Sample questions for a paper such as "Attention Is All You Need": _How many layers do the encoder and decoder have?_, _Why are the dot products scaled by √d_k?_
 
 ## Development setup
 
@@ -86,7 +86,12 @@ npm install
 npm run dev -- --host 127.0.0.1
 ```
 
-Tests run from `backend/` with `uv run pytest`. They use fake models, so nothing is downloaded and the Anthropic API is not called. The tests that touch documents need the database (`docker compose up -d db`) and skip themselves when it is unreachable.
+Tests use fake models, so nothing is downloaded and the Anthropic API is not called. The tests that touch documents need the database (`docker compose up -d db`) and skip themselves when it is unreachable:
+
+```bash
+docker compose up -d db
+make backend-test
+```
 
 ### Layout
 
