@@ -52,7 +52,6 @@ class ReRanker:
             for candidate, score in sorted(
                 zip(candidates, scores), key=lambda x: x[1], reverse=True
             )
-            if score > 0
         ]
 
         # Stopping RAG in case no query-relevant results have been extracted
